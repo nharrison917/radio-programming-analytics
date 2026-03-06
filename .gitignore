@@ -5,3 +5,9 @@ __pycache__/
 logs/
 backups/
 scratch/
+project_state.md
+
+#SQLit files
+*.db
+*.db-shm
+*.db-wal
