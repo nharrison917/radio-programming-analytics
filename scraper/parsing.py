@@ -106,12 +106,13 @@ def parse_played_page(html_text, source_url):
             plays.append({
                 "play_ts": dt.isoformat(),
                 "station_show": station_show,
-                "title": raw_title,
-                "artist": raw_artist,
+                "title": raw_title.strip(),
+                "artist": raw_artist.strip(),
                 "raw_title": raw_title,
                 "raw_artist": raw_artist,
                 "raw_time_text": time_text,
-                "confidence": "unknown",
+                "confidence": "parsed",
+                "is_music_show": station_show != "GPS for Your Finances with Ken Mahoney",
                 "source_url": source_url,
                 "scraped_at": datetime.utcnow().isoformat()
             })

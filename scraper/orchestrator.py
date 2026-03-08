@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
+from pathlib import Path
 
 from scraper.config import (
     BASE_PLAYED_URL, CRAWL_DELAY,
@@ -8,14 +9,27 @@ from scraper.config import (
     MAX_PLAYS_PER_HOUR,
     FLAG_NULL_STATION_SHOW,
     FLAG_SUSPICIOUS_TITLE,
+    DB_PATH
 )
 from scraper.db import init_db, insert_play
 from scraper.fetch import fetch_url
 from scraper.parsing import parse_played_page
-from scraper.utils import setup_logging, create_backup
+from scraper.utils import setup_logging, create_backup, rotate_backups, rotate_logs
 import sqlite3
 import time
 import logging
+
+def get_existing_station_shows(db_path):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT DISTINCT station_show
+        FROM plays
+        WHERE station_show IS NOT NULL;
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    return {r[0] for r in rows}
 
 
 def build_play_url(target_date, hour):
@@ -39,11 +53,18 @@ def get_last_play_ts():
 
 
 def run_scrape():
+
     setup_logging("scrape")
     logging.info("Starting scrape job")
+
     create_backup()
+    backup_dir = Path("backups")
+    rotate_backups(backup_dir, max_backups=10)
 
     init_db()
+
+    # Snapshot existing shows BEFORE scrape
+    existing_shows = get_existing_station_shows(DB_PATH)
 
     ny_tz = ZoneInfo("America/New_York")
     now_ny = datetime.now(ny_tz)
@@ -118,7 +139,6 @@ def run_scrape():
         current_dt += timedelta(hours=1)
 
     # ---------------- ANOMALY CHECKS ----------------
-
     for hour, count in hourly_counts.items():
         if count < MIN_PLAYS_PER_HOUR:
             msg = f"hourly_low_play_count hour={hour} plays={count}"
@@ -130,58 +150,52 @@ def run_scrape():
             logging.warning(msg)
             anomalies.append(msg)
 
-    if FLAG_NULL_STATION_SHOW:
-        conn = sqlite3.connect("radio_plays.db")
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT COUNT(*) FROM plays
-            WHERE station_show IS NULL
-              AND play_ts BETWEEN ? AND ?
-        """, (start_dt.isoformat(), end_dt.isoformat()))
-
-        null_count = cur.fetchone()[0]
-        conn.close()
-
-        if null_count > 0:
-            msg = f"station_show_null count={null_count}"
-            logging.warning(msg)
-            anomalies.append(msg)
-
-    if FLAG_SUSPICIOUS_TITLE:
-        conn = sqlite3.connect("radio_plays.db")
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT id, play_ts, station_show, title, source_url
-            FROM plays
-            WHERE play_ts BETWEEN ? AND ?
-        """, (start_dt.isoformat(), end_dt.isoformat()))
-
-        rows = cur.fetchall()
-        conn.close()
-
-        for pid, play_ts, station_show, title, source_url in rows:
-            if (
-                title.endswith("W/or")
-                or title.count("(") != title.count(")")
-                or len(title.strip()) < 3
-            ):
-                msg = (
-                    f"suspicious_title id={pid} "
-                    f"play_ts={play_ts} "
-                    f"station_show='{station_show}' "
-                    f"title='{title}' "
-                    f"url='{source_url}' "
-                )
-                logging.warning(msg)
-                anomalies.append(msg)
-
-    # ---------------- DATABASE SNAPSHOT ----------------
-
-    conn = sqlite3.connect("radio_plays.db")
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
+    # NULL station_show + source_url
+    cur.execute("""
+        SELECT id, source_url
+        FROM plays
+        WHERE station_show IS NULL
+          AND play_ts BETWEEN ? AND ?
+    """, (start_dt.isoformat(), end_dt.isoformat()))
+    null_rows = cur.fetchall()
+
+    if null_rows:
+        logging.warning(f"NULL station_show entries: {len(null_rows)}")
+        for pid, source in null_rows[:20]:
+            logging.warning(f"  play_id={pid}, source={source}")
+    else:
+        logging.info("No NULL station_show entries detected.")
+
+    # Detect NEW station shows
+    cur.execute("""
+        SELECT DISTINCT station_show
+        FROM plays
+        WHERE station_show IS NOT NULL
+    """)
+    current_shows = {r[0] for r in cur.fetchall()}
+    new_shows = current_shows - existing_shows
+
+    if new_shows:
+        logging.info("New station_show detected:")
+        for show in sorted(new_shows):
+            logging.info(f"  {show}")
+    else:
+        logging.info("No new station_show detected.")
+
+    # NULL metadata after normalization
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM canonical_tracks
+        WHERE norm_artist IS NULL
+           OR norm_title_core IS NULL;
+    """)
+    null_meta_count = cur.fetchone()[0]
+    logging.info(f"Canonical entries with NULL artist/title: {null_meta_count}")
+
+    # ---------------- DATABASE SNAPSHOT ----------------
     cur.execute("SELECT COUNT(*) FROM plays")
     total_plays = cur.fetchone()[0]
 
@@ -197,7 +211,6 @@ def run_scrape():
     conn.close()
 
     # ---------------- SUMMARY LOGGING ----------------
-
     logging.info("---- DAILY SCRAPE SUMMARY ----")
     logging.info(f"first_hour={first_hour} last_hour={last_hour}")
     logging.info(f"pages_attempted={pages_attempted} pages_fetched={pages_fetched}")
@@ -216,6 +229,9 @@ def run_scrape():
             logging.warning(a)
     else:
         logging.info("No anomalies detected.")
+
+    log_dir = Path("logs")
+    rotate_logs(log_dir, prefix="scrape", max_logs=15)
 
     return {
         "plays_seen": total_seen,

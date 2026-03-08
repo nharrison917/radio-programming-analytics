@@ -8,6 +8,9 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 
+OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
+OUTPUT_DIR.mkdir(exist_ok=True)
+
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
@@ -171,13 +174,13 @@ if __name__ == "__main__":
 
     # Export core analytics tables
 
-    unique_artists_per_show(df).to_csv("analytics_unique_artists.csv", index=False)
-    entropy_by_show(df).to_csv("analytics_entropy.csv", index=False)
-    exclusive_artist_percentage(df).to_csv("analytics_exclusive_artists.csv", index=False)
-    average_album_year_by_show(df).to_csv("analytics_avg_album_year.csv", index=False)
-    freshness_percentage_by_show(df).to_csv("analytics_freshness.csv", index=False)
-    unique_artists_per_hour(df).to_csv("analytics_unique_artists_per_hour.csv", index=False)
-
+    unique_artists_per_show(df).to_csv(OUTPUT_DIR / "analytics_unique_artists.csv", index=False)
+    entropy_by_show(df).to_csv(OUTPUT_DIR / "analytics_entropy.csv", index=False)
+    exclusive_artist_percentage(df).to_csv(OUTPUT_DIR / "analytics_exclusive_artists.csv", index=False)
+    average_album_year_by_show(df).to_csv(OUTPUT_DIR / "analytics_avg_album_year.csv", index=False)
+    freshness_percentage_by_show(df).to_csv(OUTPUT_DIR / "analytics_freshness.csv", index=False)
+    unique_artists_per_hour(df).to_csv(OUTPUT_DIR / "analytics_unique_artists_per_hour.csv", index=False)
+   
     print("\nUnique Artists Per Show")
     print(unique_artists_per_show(df))
 

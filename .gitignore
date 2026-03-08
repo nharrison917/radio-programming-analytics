@@ -6,8 +6,13 @@ logs/
 backups/
 scratch/
 project_state.md
+debug.py
+
 
 #SQLit files
 *.db
 *.db-shm
 *.db-wal
+
+analytics/outputs/analytics_*.csv
+analytics/outputs/weekly_reports/

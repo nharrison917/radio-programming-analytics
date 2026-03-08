@@ -196,6 +196,12 @@ def enrich_all(client_id, client_secret):
             
                     if not selected:
                         failure_count += 1
+                        cur.execute("""
+                            UPDATE canonical_tracks
+                            SET spotify_status = 'FAILED'
+                            WHERE canonical_id = ?
+                        """, (canonical_id,))
+                        conn.commit()
 
                     if selected:
                         album = selected["album"]
@@ -224,7 +230,8 @@ def enrich_all(client_id, client_secret):
                                 spotify_match_attempt = ?,
                                 spotify_title_score = ?,
                                 spotify_artist_score = ?,
-                                spotify_enriched_at = ?
+                                spotify_enriched_at = ?,
+                                spotify_status = 'SUCCESS'
                             WHERE canonical_id = ?
                         """, (
                             selected["id"],

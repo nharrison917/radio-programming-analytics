@@ -7,6 +7,8 @@ from scraper.config import (
     FLAG_SUSPICIOUS_TITLE,
 )
 from scraper.utils import setup_logging
+from pathlib import Path
+from utils import rotate_logs
 
 
 def run_full_audit():
@@ -59,6 +61,9 @@ def run_full_audit():
 
     logging.info("---- AUDIT SUMMARY ----")
     logging.info(f"total_anomalies={len(anomalies)}")
+
+    log_dir = Path("logs")
+    rotate_logs(log_dir, prefix="audit", max_logs=5)
 
     if anomalies:
         print("\n⚠️ AUDIT ATTENTION REQUIRED:")

@@ -31,18 +31,28 @@ def init_db():
 
 def insert_play(play):
     conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA foreign_keys = ON;")
     cur = conn.cursor()
 
     try:
         cur.execute("""
             INSERT OR IGNORE INTO plays
-            (play_ts, station_show, title, artist,
-             raw_title, raw_artist, raw_time_text,
-             confidence, source_url, scraped_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (play_ts,
+            station_show,
+            is_music_show,
+            title,
+            artist,
+            raw_title,
+            raw_artist,
+            raw_time_text,
+            confidence,
+            source_url,
+            scraped_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             play["play_ts"],
             play["station_show"],
+            play.get("is_music_show"),
             play["title"],
             play["artist"],
             play["raw_title"],
