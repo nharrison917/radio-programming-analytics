@@ -18,7 +18,8 @@ def seed_new_canonicals():
             first_play_ts,
             last_play_ts,
             created_at,
-            created_by
+            created_by,
+            spotify_status
         )
         SELECT
             p.norm_key_core,
@@ -31,12 +32,13 @@ def seed_new_canonicals():
             MIN(p.play_ts),
             MAX(p.play_ts),
             DATETIME('now'),
-            'auto_seed'
+            'auto_seed',
+            'PENDING'
         FROM plays p
         LEFT JOIN canonical_tracks c
             ON p.norm_key_core = c.norm_key_core
         WHERE c.norm_key_core IS NULL
-          AND p.norm_key_core IS NOT NULL
+        AND p.norm_key_core IS NOT NULL
         GROUP BY p.norm_key_core
     """)
 

@@ -117,9 +117,22 @@ def run_weekly():
         WHERE spotify_status != 'SUCCESS'
     """, conn)["count"][0]
 
-    logging.info("Enrichment Health Snapshot")
-    logging.info(f"  Successful enrichments: {success_count}")
-    logging.info(f"  Unsuccessful enrichments: {failure_count}")
+    # ---------------------
+    # Enrichment State Snapshot
+    # ---------------------
+    state_counts = pd.read_sql_query("""
+        SELECT spotify_status, COUNT(*) AS count
+        FROM canonical_tracks
+        GROUP BY spotify_status
+    """, conn)
+
+    logging.info("---- ENRICHMENT STATE SNAPSHOT ----")
+
+    for _, row in state_counts.iterrows():
+        logging.info(f"  {row['spotify_status']}: {row['count']}")
+
+    total = state_counts["count"].sum()
+    logging.info(f"  TOTAL canonicals: {total}")
 
     conn.close()
 

@@ -87,9 +87,7 @@ def enrich_all(client_id, client_secret):
                 spotify_last_attempted_at IS NULL
                 OR spotify_last_attempted_at < DATETIME('now', '-2 days')
                 )
-            AND (
-                spotify_status IS NULL
-                OR spotify_status NOT IN ('FAILED_PERMANENT', 'NON_MUSIC'))
+            AND spotify_status IN ('PENDING', 'FAILED')
     """)
 
     rows = cur.fetchall()
