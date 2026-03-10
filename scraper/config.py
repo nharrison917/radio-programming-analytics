@@ -14,11 +14,12 @@ FLAG_SUSPICIOUS_TITLE = True
 
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+SCRAPER_CONTACT = os.getenv("SCRAPER_CONTACT")
 
 BASE_PLAYED_URL = "https://www.1071thepeak.com/played/"
 
 HEADERS = {
-    "User-Agent": "PeakRadioScraper/1.0 (Academic Research; contact: nharrison1@gmail.com)"
+    "User-Agent": f"PeakRadioScraper/1.0 (Academic Research; contact: {SCRAPER_CONTACT})"
 }
 
 DB_PATH = "radio_plays.db"
