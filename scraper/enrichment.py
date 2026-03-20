@@ -111,7 +111,10 @@ def enrich_all(client_id, client_secret):
             for row in chunk:
                 canonical_id, display_title, display_artist, norm_title, norm_artist = row
 
-                # 🔹 Update attempt tracking here
+                title_score = None
+                artist_score = None
+
+                # Update attempt tracking
                 cur.execute("""
                     UPDATE canonical_tracks
                     SET spotify_last_attempted_at = DATETIME('now'),
@@ -268,7 +271,7 @@ def enrich_all(client_id, client_secret):
             "enriched": enriched_this_run,
             "failures": failure_count,
             "attempt_counts": attempt_counts,
-            "rate_limit_abort": rate_limit_abort
+            "rate_limit_abort": True
         }
     
     conn.close()

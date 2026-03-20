@@ -1,5 +1,3 @@
-### 2.24.26 Defining normailization
-
 import re
 import unicodedata
 import html
