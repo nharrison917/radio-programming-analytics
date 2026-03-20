@@ -4,6 +4,7 @@ from scraper.weekly import run_weekly
 from scraper.normalization import normalize_new_plays
 from scraper.canonical import seed_new_canonicals, map_new_plays
 from scraper.audit import run_full_audit
+from analytics.analysis import run_analysis
 import sys
 import logging
 
@@ -58,7 +59,7 @@ def main():
         run_weekly()
 
     elif args.mode == "analyze":
-        print("Analysis pipeline not implemented yet.")
+        run_analysis()
 
     elif args.mode == "backfill":
         if not args.start or not args.end:
