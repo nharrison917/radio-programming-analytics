@@ -348,6 +348,18 @@ def run_analysis():
     fresh_results = top_fresh_tracks_by_week()
     print_fresh_tracks_report(fresh_results)
 
+    if fresh_results:
+        fresh_rows = []
+        for week, df_week in sorted(fresh_results.items()):
+            df_week = df_week.copy()
+            df_week.insert(0, "week", week)
+            df_week["rank"] = range(1, len(df_week) + 1)
+            fresh_rows.append(df_week)
+        pd.concat(fresh_rows, ignore_index=True).to_csv(
+            OUTPUT_DIR / "analytics_fresh_tracks.csv", index=False
+        )
+        logging.info("Fresh tracks CSV exported")
+
     # --- Visuals ---
     logging.info("---- Generating Visuals ----")
     run_visuals()
