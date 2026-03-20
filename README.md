@@ -171,6 +171,7 @@ As the dataset grows:
 ## Author
 
 Independent quantitative analytics portfolio project.
+Developed with assistance from Claude Code (Anthropic).
 
 
 ------------------------------------------------------------------------
