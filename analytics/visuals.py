@@ -134,10 +134,16 @@ def build_scatter_plot():
 
     output_path = OUTPUT_DIR / "density_vs_freshness.png"
     plt.savefig(output_path, dpi=300)
+    plt.close()
     print(f"Saved plot to: {output_path}")
-    
-    plt.show()
+
+
+def run_visuals():
+    build_scatter_plot()
+
+    from analytics.boxplot_release_year import build_release_year_boxplot
+    build_release_year_boxplot()
 
 
 if __name__ == "__main__":
-    build_scatter_plot()
+    run_visuals()
