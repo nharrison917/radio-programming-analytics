@@ -12,8 +12,17 @@ Development assisted by Claude Code (Anthropic).
 
 ### Planned
 - Artist breadth metric: unique song count per artist across all plays
-- Release year box plot: per-show distribution of track release years
 - Weekly fresh tracks report: top 5 recently released songs by play count per week
+
+## [0.2.0] - 2026-03-20
+
+### Added
+- `analytics/boxplot_release_year.py`: interactive Plotly box plot showing
+  distribution of track release years per show, sorted by median year
+
+### Fixed
+- `requirements.txt`: was saved in UTF-16 encoding, breaking pip installs
+  from a fresh clone; re-saved as UTF-8 and added plotly>=6.6
 
 ## [0.1.0] - 2026-03-20
 
