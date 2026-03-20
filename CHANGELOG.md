@@ -11,8 +11,23 @@ Development assisted by Claude Code (Anthropic).
 ## [Unreleased]
 
 ### Planned
-- Artist breadth metric: unique song count per artist across all plays
 - Weekly fresh tracks report: top 5 recently released songs by play count per week
+
+## [0.3.0] - 2026-03-20
+
+### Added
+- `analytics/analysis.py`: `artist_breadth()` — global count of distinct songs
+  played per artist, with total plays, repeat ratio, and show count
+- `analytics/analysis.py`: structured logging with 5-log rotation; all metrics
+  now logged to `logs/analysis_*.log`
+- `analytics/analysis.py`: `run_analysis()` entry point callable from rs_main
+- `analytics/visuals.py`: `run_visuals()` — runs scatter plot and box plot together
+- `rs_main.py`: `analyze` mode now fully wired; runs all metrics, exports CSVs,
+  and generates all visuals in one command
+
+### Changed
+- `analytics/visuals.py`: removed `plt.show()` so scatter plot saves to file
+  without blocking on an interactive window
 
 ## [0.2.0] - 2026-03-20
 
