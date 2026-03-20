@@ -19,6 +19,7 @@ def build_release_year_boxplot():
 
     df = df.dropna(subset=["spotify_album_release_year"]).copy()
     df["spotify_album_release_year"] = df["spotify_album_release_year"].astype(int)
+    df = df[df["spotify_album_release_year"] >= 1920]
 
     # Sort shows by median release year (oldest to newest left to right)
     show_order = (

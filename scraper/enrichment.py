@@ -214,6 +214,15 @@ def enrich_all(client_id, client_secret):
                         if release_date:
                             release_year = int(release_date.split("-")[0])
 
+                        current_year = datetime.utcnow().year
+                        if release_year is not None and (release_year < 1920 or release_year > current_year + 1):
+                            logging.warning(
+                                f"Implausible release year {release_year} for "
+                                f"canonical_id={canonical_id} ({display_artist} - {display_title}), "
+                                f"nulling out release year"
+                            )
+                            release_year = None
+
                         cur.execute("""
                             UPDATE canonical_tracks
                             SET spotify_id = ?,
