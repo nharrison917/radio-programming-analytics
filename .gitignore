@@ -16,3 +16,6 @@ debug.py
 
 analytics/outputs/analytics_*.csv
 analytics/outputs/weekly_reports/
+
+run_scraper.bat
+run_weekly.bat

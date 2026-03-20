@@ -171,3 +171,17 @@ As the dataset grows:
 ## Author
 
 Independent quantitative analytics portfolio project.
+
+
+------------------------------------------------------------------------
+
+## Current Status
+
+- 3/20/26: Project is under review. 
+
+I'll be using Claude Code to:
+- sweep for bugs
+- reduce pipeline friction (identify anomalies that warrent attention)
+- moderately expand analysis
+
+- CHANGELOG.md will be used
