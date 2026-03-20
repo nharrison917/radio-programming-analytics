@@ -18,6 +18,8 @@ Development assisted by Claude Code (Anthropic).
   12 months (rolling window, not calendar year)
 - `analytics/analysis.py`: `print_fresh_tracks_report()` — formatted terminal
   output of the weekly fresh tracks results
+- `analytics/outputs/analytics_fresh_tracks.csv` — persisted weekly fresh
+  tracks report, written on each `analyze` run
 
 ## [0.3.0] - 2026-03-20
 
