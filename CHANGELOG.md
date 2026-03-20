@@ -10,6 +10,16 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-20
+
+### Fixed
+- Corrected `spotify_album_release_year` for Peter Gabriel - "Shaking The Tree"
+  from 1900 to 1990 (Spotify data entry error)
+- `scraper/enrichment.py`: added plausibility guard — release years outside
+  1920 to current_year+1 are logged as warnings and nulled out rather than stored
+- `analytics/boxplot_release_year.py`: added year >= 1920 floor filter as a
+  safety net against bad upstream data skewing the y-axis
+
 ## [0.4.0] - 2026-03-20
 
 ### Added
