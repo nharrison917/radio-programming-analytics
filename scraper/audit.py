@@ -1,21 +1,19 @@
 import sqlite3
 import logging
 from scraper.config import (
-    MIN_PLAYS_PER_HOUR,
-    MAX_PLAYS_PER_HOUR,
     FLAG_NULL_STATION_SHOW,
     FLAG_SUSPICIOUS_TITLE,
+    DB_PATH,
 )
-from scraper.utils import setup_logging
+from scraper.utils import setup_logging, rotate_logs
 from pathlib import Path
-from utils import rotate_logs
 
 
 def run_full_audit():
     setup_logging("audit")
     logging.info("Starting full database audit")
 
-    conn = sqlite3.connect("radio_plays.db")
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
     anomalies = []

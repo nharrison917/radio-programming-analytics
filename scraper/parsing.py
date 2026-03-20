@@ -52,11 +52,6 @@ def parse_timestamp_guess(time_text, source_url):
 
     return None
 
-import re
-from datetime import datetime as _dt
-from urllib.parse import urlparse, parse_qs
-
-
 def parse_station_show_from_header(soup, source_url=None):
     headers = []
 
