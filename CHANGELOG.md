@@ -10,8 +10,14 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
-### Planned
-- Weekly fresh tracks report: top 5 recently released songs by play count per week
+## [0.4.0] - 2026-03-20
+
+### Added
+- `analytics/analysis.py`: `top_fresh_tracks_by_week()` — for each ISO week,
+  returns top 5 most-played tracks with a Spotify release date within the last
+  12 months (rolling window, not calendar year)
+- `analytics/analysis.py`: `print_fresh_tracks_report()` — formatted terminal
+  output of the weekly fresh tracks results
 
 ## [0.3.0] - 2026-03-20
 
