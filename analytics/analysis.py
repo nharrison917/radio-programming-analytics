@@ -215,6 +215,71 @@ def artist_breadth(df):
 
 
 # -----------------------------
+# SECTION 4 - WEEKLY FRESH TRACKS
+# -----------------------------
+
+def top_fresh_tracks_by_week(window_months=12, top_n=5):
+    """
+    For each ISO week in the dataset, returns the top N most-played tracks
+    whose Spotify release date falls within the last window_months.
+
+    Uses a dedicated query since spotify_album_release_date is not in
+    load_base_dataset().
+    """
+    query = """
+    SELECT
+        p.play_ts,
+        c.canonical_id,
+        c.norm_artist,
+        c.display_title,
+        c.spotify_album_release_year
+    FROM plays p
+    JOIN plays_to_canonical pc ON p.id = pc.play_id
+    JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
+    WHERE p.is_music_show = 1
+      AND c.spotify_album_release_date >= DATE('now', :cutoff)
+    """
+
+    conn = get_connection()
+    df = pd.read_sql_query(query, conn, params={"cutoff": f"-{window_months} months"})
+    conn.close()
+
+    if df.empty:
+        return {}
+
+    df["play_ts"] = pd.to_datetime(df["play_ts"], errors="coerce")
+    df["iso_week"] = df["play_ts"].dt.strftime("%Y-W%W")
+
+    results = {}
+
+    for week, group in df.groupby("iso_week"):
+        top = (
+            group.groupby(["canonical_id", "norm_artist", "display_title", "spotify_album_release_year"])
+            .size()
+            .reset_index(name="play_count")
+            .sort_values("play_count", ascending=False)
+            .head(top_n)
+        )
+        results[week] = top.reset_index(drop=True)
+
+    return results
+
+
+def print_fresh_tracks_report(results):
+    print(f"\n--- Fresh Tracks Report (released in last 12 months) ---")
+
+    if not results:
+        print("No qualifying tracks found.")
+        return
+
+    for week in sorted(results.keys()):
+        print(f"\nWeek {week}")
+        for i, row in results[week].iterrows():
+            year = int(row["spotify_album_release_year"]) if pd.notna(row["spotify_album_release_year"]) else "?"
+            print(f"  {i + 1}. {row['norm_artist'].title()} - {row['display_title']} ({year}) - {int(row['play_count'])} plays")
+
+
+# -----------------------------
 # MAIN EXECUTION
 # -----------------------------
 
@@ -277,6 +342,11 @@ def run_analysis():
     logging.info("---- Artist Breadth (Top 20) ----")
     print("\nArtist Breadth - Top 20 by Unique Songs")
     print(breadth.head(20).to_string(index=False))
+
+    # --- Weekly fresh tracks ---
+    logging.info("---- Fresh Tracks Report ----")
+    fresh_results = top_fresh_tracks_by_week()
+    print_fresh_tracks_report(fresh_results)
 
     # --- Visuals ---
     logging.info("---- Generating Visuals ----")
