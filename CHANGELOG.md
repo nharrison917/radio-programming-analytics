@@ -10,6 +10,27 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-22
+
+### Fixed
+- `enrichment.py`: PENDING records with attempt_count > 0 (legacy residue from
+  schema migration) corrected to FAILED; auto-repair guard now runs at the start
+  of every enrichment run to prevent recurrence
+- `audit.py`: emoji in terminal print was crashing on Windows (cp1252 encoding);
+  replaced with plain ASCII
+
+### Added
+- `config.py`: `LOW_PLAY_SUPPRESSED_SHOWS` and `LOW_PLAY_SUPPRESSED_TITLE_SIGNALS`
+  constants for configurable warning suppression
+- `orchestrator.py`: low play count warnings now suppressed for known non-music
+  shows and hours containing specified title signals; suppressed hours logged at
+  INFO instead of WARNING
+- `enrichment.py`: `new_failures` counter tracks first-attempt failures separately;
+  returned in enrichment summary
+- `weekly.py`: `new_failures` surfaced in weekly log; ATTENTION warning emitted
+  when any first-time failures occur
+- `audit.py`: reports all non-SUCCESS canonicals grouped by status on every run
+
 ## [0.4.1] - 2026-03-20
 
 ### Fixed
