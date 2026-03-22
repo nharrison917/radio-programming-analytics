@@ -55,6 +55,27 @@ def run_full_audit():
             logging.warning(msg)
             anomalies.append(msg)
 
+    # --- Unenriched canonicals ---
+    cur.execute("""
+        SELECT spotify_status, COUNT(*) as count
+        FROM canonical_tracks
+        WHERE spotify_status != 'SUCCESS'
+        GROUP BY spotify_status
+        ORDER BY count DESC
+    """)
+    unenriched = cur.fetchall()
+
+    total_unenriched = sum(r[1] for r in unenriched)
+
+    if total_unenriched > 0:
+        msg = f"unenriched_canonicals total={total_unenriched}"
+        logging.warning(msg)
+        anomalies.append(msg)
+        for status, count in unenriched:
+            logging.warning(f"  {status}: {count}")
+    else:
+        logging.info("All canonicals successfully enriched.")
+
     conn.close()
 
     logging.info("---- AUDIT SUMMARY ----")
@@ -64,7 +85,7 @@ def run_full_audit():
     rotate_logs(log_dir, prefix="audit", max_logs=5)
 
     if anomalies:
-        print("\n⚠️ AUDIT ATTENTION REQUIRED:")
+        print("\n*** AUDIT ATTENTION REQUIRED ***")
         for a in anomalies[:20]:
             print("-", a)
         if len(anomalies) > 20:

@@ -10,6 +10,17 @@ MAX_PLAYS_PER_HOUR = 30
 FLAG_NULL_STATION_SHOW = True
 FLAG_SUSPICIOUS_TITLE = True
 
+# Shows known to play little or no music - suppress low play count warnings
+LOW_PLAY_SUPPRESSED_SHOWS = {
+    "Your Finances with Ken Mahoney",
+}
+
+# If a play title contains any of these strings, suppress low play count
+# warnings for that hour AND the following hour
+LOW_PLAY_SUPPRESSED_TITLE_SIGNALS = [
+    "Anything, Anything with Rich Russo",
+]
+
 # -------------------
 
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")

@@ -78,9 +78,21 @@ def enrich_all(client_id, client_secret):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
+    # Repair any PENDING records that have been attempted before
+    # (can occur if enrichment crashes after incrementing attempt_count
+    # but before writing FAILED status)
+    cur.execute("""
+        UPDATE canonical_tracks
+        SET spotify_status = 'FAILED'
+        WHERE spotify_status = 'PENDING'
+          AND spotify_attempt_count > 0
+    """)
+    conn.commit()
+
     cur.execute("""
         SELECT canonical_id, display_title, display_artist,
-               norm_title_core, norm_artist
+               norm_title_core, norm_artist,
+               spotify_last_attempted_at
         FROM canonical_tracks
         WHERE spotify_album_id IS NULL
             AND (
@@ -95,6 +107,7 @@ def enrich_all(client_id, client_secret):
 
     attempt_counts = {1: 0, 2: 0, 3: 0, 4: 0}
     failure_count = 0
+    new_failure_count = 0
     rate_limit_abort = False
     enriched_this_run = 0
 
@@ -109,7 +122,8 @@ def enrich_all(client_id, client_secret):
             print(f"\nProcessing chunk {i}–{i+len(chunk)}")
 
             for row in chunk:
-                canonical_id, display_title, display_artist, norm_title, norm_artist = row
+                canonical_id, display_title, display_artist, norm_title, norm_artist, last_attempted_at = row
+                is_first_attempt = last_attempted_at is None
 
                 title_score = None
                 artist_score = None
@@ -197,6 +211,9 @@ def enrich_all(client_id, client_secret):
             
                     if not selected:
                         failure_count += 1
+                        if is_first_attempt:
+                            new_failure_count += 1
+                            logging.info(f"New failure (first attempt) canonical_id={canonical_id} ({display_artist} - {display_title})")
                         cur.execute("""
                             UPDATE canonical_tracks
                             SET spotify_status = 'FAILED'
@@ -279,15 +296,17 @@ def enrich_all(client_id, client_secret):
         return {
             "enriched": enriched_this_run,
             "failures": failure_count,
+            "new_failures": new_failure_count,
             "attempt_counts": attempt_counts,
             "rate_limit_abort": True
         }
-    
+
     conn.close()
 
     return {
         "enriched": enriched_this_run,
         "failures": failure_count,
+        "new_failures": new_failure_count,
         "attempt_counts": attempt_counts,
         "rate_limit_abort": rate_limit_abort
     }
