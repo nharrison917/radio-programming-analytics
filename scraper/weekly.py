@@ -38,6 +38,7 @@ def run_weekly():
     summary.update({
         "enriched": enrichment_summary.get("enriched", 0),
         "failures": enrichment_summary.get("failures", 0),
+        "new_failures": enrichment_summary.get("new_failures", 0),
         "abort": enrichment_summary.get("rate_limit_abort", False),
     })
 
@@ -47,8 +48,14 @@ def run_weekly():
     logging.info(
         f"enriched={summary['enriched']} "
         f"failures={summary['failures']} "
+        f"new_failures={summary['new_failures']} "
         f"abort={summary['abort']}"
     )
+    if summary["new_failures"] > 0:
+        logging.warning(
+            f"ATTENTION: {summary['new_failures']} track(s) failed Spotify enrichment "
+            f"for the first time this run - check enrichment_failures.csv"
+        )
 
     logging.info(
         "attempt_distribution "

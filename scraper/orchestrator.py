@@ -9,6 +9,8 @@ from scraper.config import (
     MAX_PLAYS_PER_HOUR,
     FLAG_NULL_STATION_SHOW,
     FLAG_SUSPICIOUS_TITLE,
+    LOW_PLAY_SUPPRESSED_SHOWS,
+    LOW_PLAY_SUPPRESSED_TITLE_SIGNALS,
     DB_PATH
 )
 from scraper.db import init_db, insert_play
@@ -91,6 +93,7 @@ def run_scrape():
     total_seen = 0
     total_inserted = 0
     hourly_counts = {}
+    suppressed_hours = set()
     anomalies = []
 
     pages_attempted = 0
@@ -133,6 +136,24 @@ def run_scrape():
 
         total_inserted += inserted
 
+        # Check for suppression signals in this hour's plays
+        for p in plays:
+            show = p.get("station_show", "") or ""
+            title = p.get("title", "") or ""
+
+            if show in LOW_PLAY_SUPPRESSED_SHOWS:
+                suppressed_hours.add(hour_key)
+
+            for signal in LOW_PLAY_SUPPRESSED_TITLE_SIGNALS:
+                if signal.lower() in title.lower():
+                    suppressed_hours.add(hour_key)
+                    next_dt = current_dt + timedelta(hours=1)
+                    suppressed_hours.add(next_dt.strftime("%Y-%m-%dT%H"))
+                    logging.info(
+                        f"Suppressing low-play warning for {hour_key} and "
+                        f"following hour (title signal: '{signal}')"
+                    )
+
         logging.info(f"Hour={hour_key} parsed={len(plays)} inserted={inserted}")
 
         time.sleep(CRAWL_DELAY)
@@ -141,9 +162,12 @@ def run_scrape():
     # ---------------- ANOMALY CHECKS ----------------
     for hour, count in hourly_counts.items():
         if count < MIN_PLAYS_PER_HOUR:
-            msg = f"hourly_low_play_count hour={hour} plays={count}"
-            logging.warning(msg)
-            anomalies.append(msg)
+            if hour in suppressed_hours:
+                logging.info(f"hourly_low_play_count suppressed hour={hour} plays={count}")
+            else:
+                msg = f"hourly_low_play_count hour={hour} plays={count}"
+                logging.warning(msg)
+                anomalies.append(msg)
 
         if count > MAX_PLAYS_PER_HOUR:
             msg = f"hourly_high_play_count hour={hour} plays={count}"
