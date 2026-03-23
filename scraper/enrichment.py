@@ -221,66 +221,66 @@ def enrich_all(client_id, client_secret):
                         """, (canonical_id,))
                         conn.commit()
 
-                    if selected:
-                        album = selected["album"]
-                        primary_artist = selected["artists"][0]
-                        release_date = album.get("release_date")
-                        release_precision = album.get("release_date_precision")
-                
+                if selected:
+                    album = selected["album"]
+                    primary_artist = selected["artists"][0]
+                    release_date = album.get("release_date")
+                    release_precision = album.get("release_date_precision")
+
+                    release_year = None
+                    if release_date:
+                        release_year = int(release_date.split("-")[0])
+
+                    current_year = datetime.utcnow().year
+                    if release_year is not None and (release_year < 1920 or release_year > current_year + 1):
+                        logging.warning(
+                            f"Implausible release year {release_year} for "
+                            f"canonical_id={canonical_id} ({display_artist} - {display_title}), "
+                            f"nulling out release year"
+                        )
                         release_year = None
-                        if release_date:
-                            release_year = int(release_date.split("-")[0])
 
-                        current_year = datetime.utcnow().year
-                        if release_year is not None and (release_year < 1920 or release_year > current_year + 1):
-                            logging.warning(
-                                f"Implausible release year {release_year} for "
-                                f"canonical_id={canonical_id} ({display_artist} - {display_title}), "
-                                f"nulling out release year"
-                            )
-                            release_year = None
+                    cur.execute("""
+                        UPDATE canonical_tracks
+                        SET spotify_id = ?,
+                            spotify_uri = ?,
+                            spotify_url = ?,
+                            spotify_track_name = ?,
+                            spotify_duration_ms = ?,
+                            spotify_primary_artist_id = ?,
+                            spotify_primary_artist_name = ?,
+                            spotify_album_id = ?,
+                            spotify_album_name = ?,
+                            spotify_album_release_date = ?,
+                            spotify_album_release_year = ?,
+                            spotify_album_release_date_precision = ?,
+                            spotify_match_attempt = ?,
+                            spotify_title_score = ?,
+                            spotify_artist_score = ?,
+                            spotify_enriched_at = ?,
+                            spotify_status = 'SUCCESS'
+                        WHERE canonical_id = ?
+                    """, (
+                        selected["id"],
+                        selected.get("uri"),
+                        selected.get("external_urls", {}).get("spotify"),
+                        selected["name"],
+                        selected.get("duration_ms"),
+                        primary_artist.get("id"),
+                        primary_artist.get("name"),
+                        album.get("id"),
+                        album.get("name"),
+                        release_date,
+                        release_year,
+                        release_precision,
+                        selected_attempt,
+                        title_score,
+                        artist_score,
+                        datetime.utcnow().isoformat(),
+                        canonical_id
+                    ))
 
-                        cur.execute("""
-                            UPDATE canonical_tracks
-                            SET spotify_id = ?,
-                                spotify_uri = ?,
-                                spotify_url = ?,
-                                spotify_track_name = ?,
-                                spotify_duration_ms = ?,
-                                spotify_primary_artist_id = ?,
-                                spotify_primary_artist_name = ?,
-                                spotify_album_id = ?,
-                                spotify_album_name = ?,
-                                spotify_album_release_date = ?,
-                                spotify_album_release_year = ?,
-                                spotify_album_release_date_precision = ?,
-                                spotify_match_attempt = ?,
-                                spotify_title_score = ?,
-                                spotify_artist_score = ?,
-                                spotify_enriched_at = ?,
-                                spotify_status = 'SUCCESS'
-                            WHERE canonical_id = ?
-                        """, (
-                            selected["id"],
-                            selected.get("uri"),
-                            selected.get("external_urls", {}).get("spotify"),
-                            selected["name"],
-                            selected.get("duration_ms"),
-                            primary_artist.get("id"),
-                            primary_artist.get("name"),
-                            album.get("id"),
-                            album.get("name"),
-                            release_date,
-                            release_year,
-                            release_precision,
-                            selected_attempt,
-                            title_score,
-                            artist_score,
-                            datetime.utcnow().isoformat(),
-                            canonical_id
-                        ))
-
-                        conn.commit()
+                    conn.commit()
 
             processed += len(chunk)
             print(f"Processed {processed}/{total}")
