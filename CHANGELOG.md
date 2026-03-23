@@ -10,6 +10,25 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-23
+
+### Fixed
+- `enrichment.py`: critical indentation bug — `if selected:` (SUCCESS write) was
+  nested inside `if not selected:`, meaning no manual override has ever
+  successfully enriched a track since the mechanism was written
+- `enrichment_failures.csv`: was including NON_MUSIC and would have included
+  NO_MATCH; now filtered to FAILED only (actionable items)
+
+### Added
+- `NO_MATCH` status: for canonicals confirmed as unresolvable on Spotify;
+  excluded from enrichment API calls, failures report, and audit warnings
+- `enrichment_failures.csv`: added `last_play_ts` column (most recent play
+  date for the canonical) to help prioritise which failures to investigate
+- `enrichment_attempt_3_4.csv`: added `spotify_track_name` and
+  `spotify_primary_artist_name` columns
+- `audit.py`: unenriched section now distinguishes actionable (FAILED) from
+  closed (NO_MATCH, NON_MUSIC); only actionable items trigger a warning
+
 ## [0.5.0] - 2026-03-22
 
 ### Fixed
