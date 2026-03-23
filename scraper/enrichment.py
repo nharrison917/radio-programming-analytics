@@ -108,6 +108,7 @@ def enrich_all(client_id, client_secret):
     attempt_counts = {1: 0, 2: 0, 3: 0, 4: 0}
     failure_count = 0
     new_failure_count = 0
+    override_failure_count = 0
     rate_limit_abort = False
     enriched_this_run = 0
 
@@ -148,9 +149,6 @@ def enrich_all(client_id, client_secret):
 
                 if override:
                     override_spotify_id = override[0]
-
-                    attempt_counts[0] = attempt_counts.get(0, 0) + 1
-                    enriched_this_run += 1
                     logging.info(f"Manual override used for canonical_id={canonical_id}")
 
                     # Fetch track directly
@@ -163,7 +161,13 @@ def enrich_all(client_id, client_secret):
                         selected = track_response.json()
                         selected_attempt = 0  # override indicator
                     else:
-                        logging.warning(f"Override fetch failed for canonical_id={canonical_id}")
+                        override_failure_count += 1
+                        logging.warning(
+                            f"Override fetch failed for canonical_id={canonical_id} "
+                            f"({display_artist} - {display_title}), "
+                            f"status={track_response.status_code}, "
+                            f"spotify_id={override_spotify_id}"
+                        )
                         continue
                 else:
                     selected = None
@@ -222,6 +226,11 @@ def enrich_all(client_id, client_secret):
                         conn.commit()
 
                 if selected:
+                    # Count override successes here (search successes counted inside search loop)
+                    if selected_attempt == 0:
+                        enriched_this_run += 1
+                        attempt_counts[0] = attempt_counts.get(0, 0) + 1
+
                     album = selected["album"]
                     primary_artist = selected["artists"][0]
                     release_date = album.get("release_date")
@@ -297,6 +306,7 @@ def enrich_all(client_id, client_secret):
             "enriched": enriched_this_run,
             "failures": failure_count,
             "new_failures": new_failure_count,
+            "override_failures": override_failure_count,
             "attempt_counts": attempt_counts,
             "rate_limit_abort": True
         }
@@ -307,6 +317,7 @@ def enrich_all(client_id, client_secret):
         "enriched": enriched_this_run,
         "failures": failure_count,
         "new_failures": new_failure_count,
+        "override_failures": override_failure_count,
         "attempt_counts": attempt_counts,
         "rate_limit_abort": rate_limit_abort
     }

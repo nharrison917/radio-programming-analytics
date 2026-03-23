@@ -39,6 +39,7 @@ def run_weekly():
         "enriched": enrichment_summary.get("enriched", 0),
         "failures": enrichment_summary.get("failures", 0),
         "new_failures": enrichment_summary.get("new_failures", 0),
+        "override_failures": enrichment_summary.get("override_failures", 0),
         "abort": enrichment_summary.get("rate_limit_abort", False),
     })
 
@@ -55,6 +56,11 @@ def run_weekly():
         logging.warning(
             f"ATTENTION: {summary['new_failures']} track(s) failed Spotify enrichment "
             f"for the first time this run - check enrichment_failures.csv"
+        )
+    if summary["override_failures"] > 0:
+        logging.warning(
+            f"ATTENTION: {summary['override_failures']} manual override fetch(es) failed - "
+            f"check manual_spotify_overrides for bad IDs (see log for details)"
         )
 
     logging.info(

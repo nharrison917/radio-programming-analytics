@@ -10,6 +10,23 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-23
+
+### Fixed
+- `enrichment.py`: `enriched_this_run` counter was incremented when an override
+  entry was *found*, before the Spotify fetch confirmed 200 — so `enriched=12`
+  could be logged even when all 12 override fetches returned 404. Counter now
+  incremented only after a successful fetch inside `if selected:`
+- `enrichment.py`: override fetch failures were silently `continue`d with no
+  visibility; now tracked via `override_failure_count` and returned in the
+  enrichment summary
+
+### Added
+- `enrichment.py`: `override_failures` counter returned in enrichment summary
+- `weekly.py`: `override_failures` wired into weekly summary; ATTENTION warning
+  logged when any override fetches fail (prompts check of manual_spotify_overrides
+  for bad IDs)
+
 ## [0.6.0] - 2026-03-23
 
 ### Fixed
