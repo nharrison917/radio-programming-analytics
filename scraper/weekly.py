@@ -76,6 +76,8 @@ def run_weekly():
             canonical_id,
             norm_artist,
             display_title,
+            spotify_track_name,
+            spotify_primary_artist_name,
             spotify_match_attempt,
             spotify_album_release_year,
             spotify_title_score,
@@ -91,19 +93,23 @@ def run_weekly():
         index=False
     )
 
-    # Failures
+    # Failures (excludes NON_MUSIC and NO_MATCH — those are closed/non-actionable)
     df_failures = pd.read_sql_query("""
         SELECT
-            canonical_id,
-            norm_artist,
-            display_title,
-            spotify_attempt_count,
-            spotify_status,
-            spotify_last_attempted_at
-        FROM canonical_tracks
-        WHERE spotify_attempt_count > 0
-          AND spotify_status != 'SUCCESS'
-        ORDER BY spotify_attempt_count DESC
+            c.canonical_id,
+            c.norm_artist,
+            c.display_title,
+            c.spotify_attempt_count,
+            c.spotify_status,
+            c.spotify_last_attempted_at,
+            MAX(p.play_ts) AS last_play_ts
+        FROM canonical_tracks c
+        LEFT JOIN plays_to_canonical ptc ON c.canonical_id = ptc.canonical_id
+        LEFT JOIN plays p ON ptc.play_id = p.id
+        WHERE c.spotify_attempt_count > 0
+          AND c.spotify_status = 'FAILED'
+        GROUP BY c.canonical_id
+        ORDER BY c.spotify_attempt_count DESC
     """, conn)
 
     df_failures.to_csv(

@@ -56,6 +56,8 @@ def run_full_audit():
             anomalies.append(msg)
 
     # --- Unenriched canonicals ---
+    # FAILED = actionable (should be investigated or marked NO_MATCH)
+    # NO_MATCH / NON_MUSIC = closed (intentionally excluded from enrichment)
     cur.execute("""
         SELECT spotify_status, COUNT(*) as count
         FROM canonical_tracks
@@ -65,16 +67,23 @@ def run_full_audit():
     """)
     unenriched = cur.fetchall()
 
-    total_unenriched = sum(r[1] for r in unenriched)
+    closed_statuses = {'NO_MATCH', 'NON_MUSIC'}
+    actionable = [(s, c) for s, c in unenriched if s not in closed_statuses]
+    closed = [(s, c) for s, c in unenriched if s in closed_statuses]
 
-    if total_unenriched > 0:
-        msg = f"unenriched_canonicals total={total_unenriched}"
+    if actionable:
+        total_actionable = sum(c for _, c in actionable)
+        msg = f"unenriched_actionable total={total_actionable}"
         logging.warning(msg)
         anomalies.append(msg)
-        for status, count in unenriched:
+        for status, count in actionable:
             logging.warning(f"  {status}: {count}")
     else:
-        logging.info("All canonicals successfully enriched.")
+        logging.info("No actionable unenriched canonicals.")
+
+    if closed:
+        for status, count in closed:
+            logging.info(f"  {status} (closed): {count}")
 
     conn.close()
 
