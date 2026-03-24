@@ -20,8 +20,8 @@ analytics under real-world API and normalization constraints.
 
 Current dataset:
 
--   25 days of hourly playlist data
--   > 7,000 recorded plays
+-   43 days of hourly playlist data (2026-02-10 to 2026-03-24)
+-   > 12,000 recorded plays
 -   ~98% Spotify enrichment match rate
 -   Fully mapped canonical track relationships
 

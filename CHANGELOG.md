@@ -10,6 +10,48 @@ Development assisted by Claude Code (Anthropic).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-24
+
+### Added
+- `analytics/wednesday_freshness.py`: day-of-week freshness analysis testing whether
+  Wednesday programming has a measurably higher bias toward recently-released tracks.
+  Motivated by 107.1 The Peak's public programming claim that Wednesdays feature at
+  least one new song per broadcast hour.
+  - "New" defined as a rolling window relative to play date (not absolute), so the
+    analysis stays valid as the dataset ages
+  - 14-day forward buffer applied to account for confirmed advance/promo plays
+    (13 pre-release plays observed in dataset; max gap 10 days)
+  - Two metrics: % of plays qualifying as new, and % of broadcast hours containing
+    at least one new track (the latter directly tests the station's programming claim)
+  - Three thresholds tested: 8 weeks, 16 weeks, 24 weeks
+  - Run both including and excluding format-biased shows (This Just In with Meg White,
+    10 @ 10, 10 @ 10 Weekend Replay, 90's at Night)
+  - Output: `analytics/outputs/wednesday_freshness.html` (Plotly interactive)
+- `analytics/wednesday_freshness.py` wired into `rs_main.py analyze` via `run_analysis()`
+- `CLAUDE.md` added to project root with architecture, DB schema, enrichment behavior,
+  entry points, and data integrity rules for onboarding future sessions
+
+### Changed
+- `README.md`: dataset stats updated to reflect current size (43 days, >12,000 plays)
+
+### Findings
+- Wednesday shows a modest freshness edge at tight thresholds (8w, 16w) -- roughly
+  1-2 percentage points above the next highest day -- consistent with the station's
+  claimed programming policy, but not dramatically distinct from other days
+- At the 24-week threshold the edge disappears, suggesting the signal is specific to
+  genuinely recent releases rather than a broad catalog skew
+- Excluding format shows does not materially change the pattern; the Wednesday signal
+  is present in the general rotation, not driven by a single show
+- With ~6 weeks of each weekday in the current dataset the result is suggestive but
+  not conclusive; interpretation should be framed as "consistent with the claim"
+  rather than as a confirmed finding
+
+### Future analysis
+- Once the dataset covers several months, a show-level breakdown of Wednesday freshness
+  will be meaningful: currently the day-level signal is visible but it is not possible
+  to determine whether it is spread across the full Wednesday rotation or concentrated
+  in one show's scheduling slot
+
 ## [0.7.0] - 2026-03-23
 
 ### Fixed
