@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scraper.utils import setup_logging, rotate_logs
 from analytics.visuals import run_visuals
+from analytics.wednesday_freshness import run_wednesday_freshness
 
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 
@@ -363,6 +364,10 @@ def run_analysis():
     # --- Visuals ---
     logging.info("---- Generating Visuals ----")
     run_visuals()
+
+    # --- Wednesday freshness ---
+    logging.info("---- Wednesday Freshness Analysis ----")
+    run_wednesday_freshness()
 
     logging.info("Analysis pipeline complete")
 
