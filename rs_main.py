@@ -26,7 +26,7 @@ def main():
 
     parser.add_argument(
         "mode",
-        choices=["scrape", "weekly", "analyze", "backfill", "audit"],
+        choices=["scrape", "weekly", "analyze", "backfill", "audit", "enrich-meta", "mb-enrich"],
         help="Which job to run"
     )
     parser.add_argument("--start", type=str, help="ISO start datetime (YYYY-MM-DDTHH:MM)")
@@ -67,6 +67,14 @@ def main():
             return
 
         run_backfill(args.start, args.end)
+
+    elif args.mode == "enrich-meta":
+        from scraper.spotify_backfill import backfill_spotify_meta
+        backfill_spotify_meta()
+
+    elif args.mode == "mb-enrich":
+        from scraper.mb_enrichment import run_mb_enrichment
+        run_mb_enrichment()
 
     elif args.mode == "audit":
         run_full_audit()

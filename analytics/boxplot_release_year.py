@@ -17,13 +17,13 @@ def build_release_year_boxplot():
     print("Loading dataset...")
     df = load_base_dataset()
 
-    df = df.dropna(subset=["spotify_album_release_year"]).copy()
-    df["spotify_album_release_year"] = df["spotify_album_release_year"].astype(int)
-    df = df[df["spotify_album_release_year"] >= 1920]
+    df = df.dropna(subset=["best_year"]).copy()
+    df["best_year"] = df["best_year"].astype(int)
+    df = df[df["best_year"] >= 1920]
 
     # Sort shows by median release year (oldest to newest left to right)
     show_order = (
-        df.groupby("station_show")["spotify_album_release_year"]
+        df.groupby("station_show")["best_year"]
         .median()
         .sort_values()
         .index.tolist()
@@ -32,7 +32,7 @@ def build_release_year_boxplot():
     fig = go.Figure()
 
     for show in show_order:
-        years = df[df["station_show"] == show]["spotify_album_release_year"]
+        years = df[df["station_show"] == show]["best_year"]
         fig.add_trace(go.Box(
             y=years,
             name=show,

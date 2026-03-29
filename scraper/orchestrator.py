@@ -13,7 +13,7 @@ from scraper.config import (
     LOW_PLAY_SUPPRESSED_TITLE_SIGNALS,
     DB_PATH
 )
-from scraper.db import init_db, insert_play
+from scraper.db import init_db, migrate_db, insert_play
 from scraper.fetch import fetch_url
 from scraper.parsing import parse_played_page
 from scraper.utils import setup_logging, create_backup, rotate_backups, rotate_logs
@@ -64,6 +64,7 @@ def run_scrape():
     rotate_backups(backup_dir, max_backups=10)
 
     init_db()
+    migrate_db()
 
     # Snapshot existing shows BEFORE scrape
     existing_shows = get_existing_station_shows(DB_PATH)

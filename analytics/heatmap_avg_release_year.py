@@ -14,14 +14,19 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 query = """
 SELECT
     p.play_ts,
-    c.spotify_album_release_year
+    CASE
+        WHEN c.mb_first_release_year IS NOT NULL
+         AND c.mb_first_release_year < c.best_year
+        THEN c.mb_first_release_year
+        ELSE c.best_year
+    END AS best_year
 FROM plays p
 JOIN plays_to_canonical ptc
     ON p.id = ptc.play_id
 JOIN canonical_tracks c
     ON ptc.canonical_id = c.canonical_id
 WHERE p.is_music_show = 1
-  AND c.spotify_album_release_year IS NOT NULL
+  AND c.best_year IS NOT NULL
 """
 
 df = pd.read_sql_query(query, conn)
@@ -38,8 +43,8 @@ import numpy as np
 per_date_hour = (
     df.groupby(["date", "day_of_week", "hour"])
       .agg(
-          avg_year=("spotify_album_release_year", "mean"),
-          track_count=("spotify_album_release_year", "size")
+          avg_year=("best_year", "mean"),
+          track_count=("best_year", "size")
       )
       .reset_index()
 )
@@ -48,7 +53,7 @@ per_date_hour = (
 heatmap_data = (
     per_date_hour.groupby(["day_of_week", "hour"])
       .agg(
-          spotify_album_release_year=("avg_year", "mean"),
+          best_year=("avg_year", "mean"),
           avg_tracks=("track_count", "mean")
       )
       .reset_index()
@@ -58,7 +63,7 @@ heatmap_data = (
 MIN_TRACKS = 3
 heatmap_data.loc[
     heatmap_data["avg_tracks"] < MIN_TRACKS,
-    "spotify_album_release_year"
+    "best_year"
 ] = np.nan
 
 weekday_order = [
@@ -75,7 +80,7 @@ heatmap_data["day_of_week"] = pd.Categorical(
 pivot = heatmap_data.pivot(
     index="day_of_week",
     columns="hour",
-    values="spotify_album_release_year"
+    values="best_year"
 )  # <-- NO fillna(0)
 
 data = pivot.values.astype(float)

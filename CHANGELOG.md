@@ -8,7 +8,41 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
-## [Unreleased]
+## [0.9.0] - 2026-03-29
+
+### Phase Two: Release Year Accuracy (see PHASE_TWO.md)
+
+**Completed:**
+- Stage 1 (schema): `spotify_album_type`, `spotify_isrc`, `mb_first_release_year`,
+  `mb_lookup_status`, `mb_looked_up_at` added to `canonical_tracks` via idempotent
+  migration in `scraper/db.py`
+- Stage 3 (MusicBrainz lookup): `scraper/mb_enrichment.py` queries MB by ISRC for
+  compilation-matched and remaster-flagged tracks; rate-limited at 1.1s/req with
+  User-Agent header per MB requirements
+- Stage 4 (analytics): all year-dependent analytics switch from `spotify_album_release_year`
+  to `best_year` CASE expression; MB year accepted only when strictly earlier than
+  Spotify's (handles remaster ISRC false positives -- validated: Bowie "Fame" stays
+  at 1975, Clash "I Fought The Law" corrected 1979, Allman Brothers "Jessica" corrected 1973)
+
+**In progress -- run daily until complete (~4 more runs as of 2026-03-29):**
+- Stage 2 (Spotify backfill): `scraper/spotify_backfill.py` backfills `spotify_album_type`
+  and `spotify_isrc` for ~2,559 existing SUCCESS records; rate-limited to ~600/day.
+  `scraper/enrichment.py` updated to populate both fields on all new enrichments.
+  Run sequence: `python rs_main.py enrich-meta` then `python rs_main.py mb-enrich`
+
+**Key finding from 600-track sample:**
+- 8.8% compilation, 16.0% album-type with remaster/deluxe signals -> ~24.8% year-suspect
+  (higher than anticipated; remaster heuristic is necessary, not optional)
+- Remaster heuristic signals: `remaster`, `deluxe`, `anniversary`, `expanded`, `edition`
+
+### Added
+- `analytics/era_continuity.py`: three consecutive-pair release year metrics per show
+  (era continuity %, mean absolute year gap, era break rate), three Plotly charts,
+  CSV output. Thresholds configurable at top of file.
+- `scraper/spotify_backfill.py`: one-time backfill of ISRC and album_type for existing
+  SUCCESS records; idempotent, skips already-populated records
+- `scraper/mb_enrichment.py`: MusicBrainz ISRC lookup for compilation/remaster tracks;
+  stores `mb_first_release_year` and `mb_lookup_status`; idempotent
 
 ## [0.8.0] - 2026-03-24
 

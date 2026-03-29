@@ -249,6 +249,9 @@ def enrich_all(client_id, client_secret):
                         )
                         release_year = None
 
+                    isrc = selected.get("external_ids", {}).get("isrc") or ""
+                    album_type = album.get("album_type") or ""
+
                     cur.execute("""
                         UPDATE canonical_tracks
                         SET spotify_id = ?,
@@ -267,6 +270,8 @@ def enrich_all(client_id, client_secret):
                             spotify_title_score = ?,
                             spotify_artist_score = ?,
                             spotify_enriched_at = ?,
+                            spotify_isrc = ?,
+                            spotify_album_type = ?,
                             spotify_status = 'SUCCESS'
                         WHERE canonical_id = ?
                     """, (
@@ -286,6 +291,8 @@ def enrich_all(client_id, client_secret):
                         title_score,
                         artist_score,
                         datetime.utcnow().isoformat(),
+                        isrc,
+                        album_type,
                         canonical_id
                     ))
 
