@@ -39,6 +39,12 @@ def load_base_dataset():
         c.norm_artist AS normalized_artist,
         c.display_title AS normalized_title,
         c.spotify_album_release_year,
+        CASE
+            WHEN c.mb_first_release_year IS NOT NULL
+             AND c.mb_first_release_year < c.spotify_album_release_year
+            THEN c.mb_first_release_year
+            ELSE c.spotify_album_release_year
+        END AS best_year,
         c.spotify_duration_ms
     FROM plays p
     JOIN plays_to_canonical pc ON p.id = pc.play_id
@@ -149,8 +155,8 @@ def exclusive_artist_percentage(df):
 
 def average_album_year_by_show(df):
     result = (
-        df.dropna(subset=["spotify_album_release_year"])
-        .groupby("station_show")["spotify_album_release_year"]
+        df.dropna(subset=["best_year"])
+        .groupby("station_show")["best_year"]
         .mean()
         .reset_index(name="avg_album_year")
         .sort_values("avg_album_year", ascending=False)
@@ -162,7 +168,7 @@ def freshness_percentage_by_show(df, recent_year_threshold=5):
     current_year = pd.Timestamp.now().year
     cutoff = current_year - recent_year_threshold
 
-    df_recent = df[df["spotify_album_release_year"] >= cutoff]
+    df_recent = df[df["best_year"] >= cutoff]
 
     total_counts = df.groupby("station_show").size().reset_index(name="total_tracks")
     recent_counts = df_recent.groupby("station_show").size().reset_index(name="recent_tracks")
@@ -233,7 +239,12 @@ def top_fresh_tracks_by_week(window_months=12, top_n=5):
         c.canonical_id,
         c.norm_artist,
         c.display_title,
-        c.spotify_album_release_year
+        CASE
+            WHEN c.mb_first_release_year IS NOT NULL
+             AND c.mb_first_release_year < c.spotify_album_release_year
+            THEN c.mb_first_release_year
+            ELSE c.spotify_album_release_year
+        END AS best_year
     FROM plays p
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
@@ -255,7 +266,7 @@ def top_fresh_tracks_by_week(window_months=12, top_n=5):
 
     for week, group in df.groupby("iso_week"):
         top = (
-            group.groupby(["canonical_id", "norm_artist", "display_title", "spotify_album_release_year"])
+            group.groupby(["canonical_id", "norm_artist", "display_title", "best_year"])
             .size()
             .reset_index(name="play_count")
             .sort_values("play_count", ascending=False)
@@ -276,7 +287,7 @@ def print_fresh_tracks_report(results):
     for week in sorted(results.keys()):
         print(f"\nWeek {week}")
         for i, row in results[week].iterrows():
-            year = int(row["spotify_album_release_year"]) if pd.notna(row["spotify_album_release_year"]) else "?"
+            year = int(row["best_year"]) if pd.notna(row["best_year"]) else "?"
             print(f"  {i + 1}. {row['norm_artist'].title()} - {row['display_title']} ({year}) - {int(row['play_count'])} plays")
 
 

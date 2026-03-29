@@ -28,6 +28,8 @@ python rs_main.py scrape      # Daily ingestion (also runs audit)
 python rs_main.py weekly      # Enrichment run
 python rs_main.py analyze     # All analytics + visuals
 python rs_main.py audit       # Standalone audit
+python rs_main.py enrich-meta # Backfill spotify_isrc + spotify_album_type (~600/day limit)
+python rs_main.py mb-enrich   # MusicBrainz ISRC lookup for compilation/remaster tracks
 python rs_main.py backfill --start YYYY-MM-DDTHH:MM --end YYYY-MM-DDTHH:MM
 ```
 
@@ -38,13 +40,17 @@ ingest -> normalize -> seed canonicals -> map plays -> audit
 
 ## Database schema
 
-| Table | Purpose |
-|---|---|
-| `plays` | Raw play records |
-| `canonical_tracks` | Deduplicated track entities with Spotify metadata |
-| `plays_to_canonical` | Many-to-one mapping of plays to canonicals |
-| `manual_spotify_overrides` | Hand-supplied Spotify IDs for FAILED tracks |
-| `play_insert_conflicts` | Idempotency conflict log |
+| Table | Purpose | Key columns |
+|---|---|---|
+| `plays` | Raw play records | `id`, `play_ts`, `station_show`, `is_music_show`, `title`, `artist`, `norm_key_core` |
+| `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_first_release_year`, `mb_lookup_status` |
+| `canonical_artists` | Per-artist Spotify metadata (career-level) | `spotify_artist_id`, `artist_name`, `earliest_release_year`, `enrichment_status` |
+| `plays_to_canonical` | Many-to-one mapping of plays to canonicals | `play_id`, `canonical_id`, `match_method` |
+| `manual_spotify_overrides` | Hand-supplied Spotify IDs for FAILED tracks | `canonical_id`, `spotify_id` |
+| `play_insert_conflicts` | Idempotency conflict log | (rarely queried directly) |
+
+Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
+`canonical_tracks` has no Python `CREATE TABLE` -- it was created directly in SQLite.
 
 ## Key files
 
@@ -52,7 +58,10 @@ ingest -> normalize -> seed canonicals -> map plays -> audit
 |---|---|
 | `scraper/config.py` | All constants, thresholds, DB_PATH, credentials |
 | `scraper/enrichment.py` | Spotify enrichment logic, override handling |
+| `scraper/spotify_backfill.py` | One-time backfill of ISRC + album_type for existing records |
+| `scraper/mb_enrichment.py` | MusicBrainz ISRC lookup for compilation/remaster tracks |
 | `scraper/audit.py` | Post-pipeline data quality checks |
+| `analytics/era_continuity.py` | Consecutive-pair era metrics (continuity %, gap, break rate) |
 | `radio_plays.db` | SQLite database (not in repo -- generated at runtime) |
 | `analytics/outputs/enrichment_failures.csv` | FAILED-status canonicals only (actionable) |
 | `.env` | Spotify credentials + scraper contact (not in repo) |
@@ -82,6 +91,29 @@ Only `FAILED` records are actionable. `NO_MATCH` and `NON_MUSIC` are closed.
   start (legacy schema migration residue).
 - Validate numeric fields from Spotify against domain bounds before writing to DB.
   Log and null implausible values -- do not store silently.
+
+### best_year resolution (Phase Two)
+
+All year-dependent analytics use `best_year`, not `spotify_album_release_year` directly:
+
+```sql
+CASE
+    WHEN ct.mb_first_release_year IS NOT NULL
+     AND ct.mb_first_release_year < ct.spotify_album_release_year
+    THEN ct.mb_first_release_year
+    ELSE ct.spotify_album_release_year
+END AS best_year
+```
+
+MB year is only accepted when it is strictly earlier than Spotify's -- this handles the
+case where Spotify returns the ISRC of a remaster version, causing MB to report the
+remaster year instead of the original (e.g. Bowie - Fame: Spotify=1975 correct, MB
+would return 2016 for the remaster ISRC; the rule keeps 1975).
+
+`spotify_album_type` and `spotify_isrc` are backfilled for existing records via
+`python rs_main.py enrich-meta` (~600 records/day Spotify quota). After each
+`enrich-meta` run, follow with `python rs_main.py mb-enrich` to process newly
+eligible compilation/remaster records.
 
 ## Outputs
 

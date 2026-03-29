@@ -1,4 +1,5 @@
 from scraper.enrichment import enrich_all
+from scraper.artist_enrichment import seed_canonical_artists, enrich_artists
 from scraper.config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, DB_PATH
 from scraper.utils import create_backup, setup_logging, rotate_backups, rotate_logs
 import logging
@@ -67,6 +68,30 @@ def run_weekly():
         "attempt_distribution "
         + " ".join(f"attempt{a}={attempt_counts.get(a,0)}" for a in [1,2,3,4])
     )
+
+    # ---------------------
+    # Artist Enrichment
+    # ---------------------
+    seed_canonical_artists()
+    artist_summary = enrich_artists(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET) or {}
+
+    summary.update({
+        "artists_enriched": artist_summary.get("artists_enriched", 0),
+        "artist_failures": artist_summary.get("artist_failures", 0),
+        "artist_abort": artist_summary.get("artist_rate_limit_abort", False),
+    })
+
+    logging.info("---- WEEKLY ARTIST ENRICHMENT SUMMARY ----")
+    logging.info(
+        f"artists_enriched={summary['artists_enriched']} "
+        f"artist_failures={summary['artist_failures']} "
+        f"artist_abort={summary['artist_abort']}"
+    )
+    if summary["artist_abort"]:
+        logging.warning(
+            "ATTENTION: Artist enrichment was rate-limited this run -- "
+            "remaining artists will be picked up on the next run"
+        )
 
     # ---------------------
     # Weekly Reports (AFTER enrichment)

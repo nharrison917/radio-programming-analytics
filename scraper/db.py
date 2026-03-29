@@ -1,6 +1,38 @@
 import sqlite3
 from scraper.config import DB_PATH
 
+
+def migrate_db():
+    """Apply incremental schema changes to an existing database.
+
+    Uses PRAGMA table_info to check for existing columns before adding,
+    making each migration step idempotent. Safe to run on a live DB.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    # -- Phase Two: release year accuracy via ISRC + MusicBrainz --
+    cur.execute("PRAGMA table_info(canonical_tracks)")
+    existing = {row[1] for row in cur.fetchall()}
+
+    new_columns = [
+        ("spotify_album_type",    "TEXT"),
+        ("spotify_isrc",          "TEXT"),
+        ("mb_first_release_year", "INTEGER"),
+        ("mb_lookup_status",      "TEXT"),
+        ("mb_looked_up_at",       "TEXT"),
+    ]
+    for col_name, col_type in new_columns:
+        if col_name not in existing:
+            cur.execute(
+                f"ALTER TABLE canonical_tracks ADD COLUMN {col_name} {col_type}"
+            )
+            print(f"  migrate_db: added column canonical_tracks.{col_name}")
+
+    conn.commit()
+    conn.close()
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -24,6 +56,19 @@ def init_db():
     cur.execute("""
     CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_play
     ON plays(play_ts, station_show, title, artist)
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS canonical_artists (
+        spotify_artist_id   TEXT PRIMARY KEY,
+        artist_name         TEXT,
+        earliest_release_year INTEGER,
+        earliest_release_name TEXT,
+        enrichment_status   TEXT DEFAULT 'PENDING',
+        last_attempted_at   TEXT,
+        attempt_count       INTEGER DEFAULT 0,
+        created_at          TEXT
+    )
     """)
 
     conn.commit()

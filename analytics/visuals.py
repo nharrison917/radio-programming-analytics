@@ -23,7 +23,12 @@ def load_dataset():
         p.play_ts,
         p.station_show,
         c.norm_artist AS normalized_artist,
-        c.spotify_album_release_year
+        CASE
+            WHEN c.mb_first_release_year IS NOT NULL
+             AND c.mb_first_release_year < c.spotify_album_release_year
+            THEN c.mb_first_release_year
+            ELSE c.spotify_album_release_year
+        END AS best_year
     FROM plays p
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
@@ -72,7 +77,7 @@ def compute_freshness(df, recent_year_threshold=5):
     )
 
     recent_counts = (
-        df[df["spotify_album_release_year"] >= cutoff]
+        df[df["best_year"] >= cutoff]
         .groupby("station_show")
         .size()
         .reset_index(name="recent_tracks")
