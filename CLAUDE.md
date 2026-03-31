@@ -4,8 +4,8 @@
 
 An end-to-end data pipeline scraping radio playlist data from 107.1 The Peak,
 enriching tracks via the Spotify Web API, and producing structured programming
-analytics. Portfolio/learning project. Dataset: ~25 days, >7,000 plays, ~98%
-Spotify match rate.
+analytics. Portfolio/learning project. Dataset: 50 days, >14,000 plays, ~98.7%
+Spotify match rate (as of 2026-03-31).
 
 ## Pipeline stages
 
@@ -58,6 +58,7 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 |---|---|
 | `scraper/config.py` | All constants, thresholds, DB_PATH, credentials |
 | `scraper/enrichment.py` | Spotify enrichment logic, override handling |
+| `scraper/artist_enrichment.py` | Artist career metadata (earliest_release_year) via Spotify; runs as part of `weekly` |
 | `scraper/spotify_backfill.py` | One-time backfill of ISRC + album_type for existing records |
 | `scraper/mb_enrichment.py` | MusicBrainz ISRC lookup for compilation/remaster tracks |
 | `scraper/audit.py` | Post-pipeline data quality checks |

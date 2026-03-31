@@ -24,9 +24,9 @@ Development assisted by Claude Code (Anthropic).
   Spotify's (handles remaster ISRC false positives -- validated: Bowie "Fame" stays
   at 1975, Clash "I Fought The Law" corrected 1979, Allman Brothers "Jessica" corrected 1973)
 
-**In progress -- run daily until complete (~4 more runs as of 2026-03-29):**
+**In progress -- ~1-2 runs remaining as of 2026-03-31 (1,832 of 2,591 done, 759 remaining):**
 - Stage 2 (Spotify backfill): `scraper/spotify_backfill.py` backfills `spotify_album_type`
-  and `spotify_isrc` for ~2,559 existing SUCCESS records; rate-limited to ~600/day.
+  and `spotify_isrc` for existing SUCCESS records; rate-limited to ~600/day.
   `scraper/enrichment.py` updated to populate both fields on all new enrichments.
   Run sequence: `python rs_main.py enrich-meta` then `python rs_main.py mb-enrich`
 
