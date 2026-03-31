@@ -44,7 +44,7 @@ FLAG_SUSPICIOUS_TITLE = True
 
 # Shows known to play little or no music - suppress low play count warnings
 LOW_PLAY_SUPPRESSED_SHOWS = {
-    "Your Finances with Ken Mahoney",
+    "GPS for Your Finances with Ken Mahoney",
 }
 
 # If a play title contains any of these strings, suppress low play count
