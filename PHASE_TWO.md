@@ -267,10 +267,8 @@ Realistic expectation: year corrections on 15-20% of all enriched tracks.
    returns `album_type = "album"` and the heuristic catches it via "Remastered" in
    the name, but bespoke anniversary titles may slip through.
 
-3. 10@10 post-segment tracks: show-boundary problem is separate from year accuracy.
-   Even with correct years, tracks after the 10-song segment are attributed to
-   the wrong show. Documented as a known limitation; not addressed in Phase Two.
-    - Possibly to be addressed in a future phase.
+3. 10@10 show-boundary and alias problem: two related issues contaminate era continuity
+   for this show. See Stage 5 below.
 
 4. MusicBrainz community data: MB `first-release-date` is user-contributed and
    occasionally wrong or missing for obscure releases. Treated as best available,
@@ -278,37 +276,56 @@ Realistic expectation: year corrections on 15-20% of all enriched tracks.
 
 ---
 
-## Future direction -- canonical_artists year accuracy (Phase Three candidate)
+## Stage 5 -- 10 @ 10 show boundary and alias fix
 
-`canonical_artists.earliest_release_year` is currently populated by Spotify's artist
-enrichment, which has the same remaster/compilation contamination problem as track
-years. Spotify paginates through an artist's discography and finds the minimum album
-year, but a remaster appearing as an "early album" can corrupt this.
+**Files affected:**
+- `analytics/era_continuity.py`
+- Possibly `analytics/analysis.py` and `analytics/visuals.py` (if show filtering is shared)
 
-**MusicBrainz provides a cleaner path:**
+### Two distinct problems
 
-1. Map `spotify_artist_id` -> MB Artist MBID via the MB URL relationship endpoint:
-   `GET /ws/2/url?resource=https://open.spotify.com/artist/{id}&inc=artist-rels`
+**Problem A: Show alias -- "10 @ 10 Weekend Replay" treated as a separate show**
 
-2. Browse release-groups for that MBID, which carry original `first-release-date`:
-   `GET /ws/2/release-group?artist={mbid}&limit=100`
+The weekend replay of 10@10 is logged under a different `station_show` value than
+the weekday version. Era continuity groups by `station_show`, so the two are computed
+separately. The weekend replay has fewer play pairs, producing a noisier and
+misleadingly distinct continuity reading. They represent the same programming format
+and should be combined.
 
-3. Take the minimum valid `first-release-date` year across all release groups.
+Fix: normalize "10 @ 10 Weekend Replay" -> "10 @ 10" at analytics query time using
+a CASE expression or a `show_aliases` mapping in config. Do not alter the `plays`
+table -- preserve the original `station_show` value for observability. Apply the
+alias at the analytics layer only.
 
-This is 2-3 calls per artist vs. many pages of Spotify pagination, and the dates are
-original releases rather than remaster dates.
+**Problem B: Post-segment track bleed**
 
-**Before implementing:** sample a set of already-enriched canonical_artists and compare
-Spotify's `earliest_release_year` against the MB release-group result to quantify the
-error rate. If the difference is small, the work may not be justified. If Spotify is
-consistently returning remaster years as "earliest", it is.
+The 10@10 segment is a 10-song block embedded in a larger broadcast hour. Tracks
+played before or after the segment within the same hour may be captured under the
+same `station_show = "10 @ 10"` label depending on how the playlist page structures
+the hour. These non-segment tracks contaminate the era continuity pairs:
+- A post-segment track from regular rotation creates a pair with the last 10@10 song
+- That pair spans two programming contexts and almost always breaks era continuity
+- This depresses the measured continuity % for 10@10 artificially
 
-**Schema additions needed:**
-- `canonical_artists.mb_artist_id TEXT`
-- `canonical_artists.mb_earliest_release_year INTEGER`
-- `canonical_artists.mb_lookup_status TEXT`
+Fix options (pick one after inspecting the data):
+- **Option A:** Filter to the first 10 play pairs per hour for 10@10 (assumes the
+  segment always runs first in the hour -- verify against the data)
+- **Option B:** Inspect `play_ts` offsets within the hour; the 10@10 segment likely
+  occupies a predictable time window (e.g. first 30 minutes)
+- **Option C:** Accept bleed as unfixable without segment markers in the source data;
+  document it and exclude 10@10 from continuity comparisons in the final output
 
-**best_year rule applies here too:** only accept MB year if it is earlier than Spotify's.
+**Before implementing:** run a query to count plays per hour per `station_show = "10 @ 10"`
+and inspect whether extra tracks beyond 10 are consistently present and where they
+fall in the timestamp sequence.
+
+### Acceptance criteria
+
+- "10 @ 10 Weekend Replay" plays are included in "10 @ 10" era continuity computation
+- 10@10 era continuity % changes materially after the segment boundary fix (direction
+  depends on whether bleed was helping or hurting -- verify)
+- Original `station_show` value is preserved in the `plays` table unchanged
+- Show alias mapping is defined in config, not hardcoded in the analytics script
 
 ---
 
@@ -324,6 +341,7 @@ consistently returning remaster years as "earliest", it is.
    daily enrich-meta batch as above.
 4. Stage 4 (analytics) -- COMPLETE. best_year CASE expression wired into all
    year-dependent queries; results improve incrementally as backfill completes.
+5. Stage 5 (10@10 show boundary + alias) -- PENDING
 
 Stages 1-2 are low risk. Stage 3 introduces a new external API dependency.
 Stage 4 changes analytics outputs -- re-run all visuals after Stage 3 data is populated.
@@ -344,3 +362,6 @@ Run after Stage 4 implementation and again after the full backfill completes:
 - [ ] Box plot release year distribution shifts earlier for older shows (Coach, Peak Music)
 - [ ] Era continuity re-run prints pair count alongside continuity % so any reduction
       from uncertain-year exclusions is visible
+- [ ] "10 @ 10 Weekend Replay" plays are included in "10 @ 10" era continuity output
+- [ ] 10@10 era continuity % changes after segment boundary investigation -- direction
+      and magnitude documented

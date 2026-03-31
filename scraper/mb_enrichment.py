@@ -183,7 +183,7 @@ def run_mb_enrichment():
 
                 if status == "SUCCESS":
                     success += 1
-                    if year and old_year and year != old_year:
+                    if year and old_year and year < old_year:
                         corrections.append((artist, title, old_year, year))
                 elif status == "NO_ISRC":
                     no_isrc += 1
@@ -213,14 +213,14 @@ def _print_summary(success, failed, no_isrc, corrections, aborted):
     print(f"  SUCCESS   : {success}")
     print(f"  FAILED    : {failed}")
     print(f"  NO_ISRC   : {no_isrc}")
-    print(f"  Year corrections: {len(corrections)}")
+    print(f"  Year improvements (MB earlier than Spotify): {len(corrections)}")
 
     if corrections:
-        corrections.sort(key=lambda x: abs(x[2] - x[3]), reverse=True)
+        corrections.sort(key=lambda x: x[2] - x[3], reverse=True)
         print()
-        print(f"  Top corrections (largest year shift first):")
+        print(f"  Top improvements (largest year shift first):")
         for artist, title, old, new in corrections[:15]:
-            print(f"    {artist} - {title}: {old} -> {new}  (shift={abs(old-new)}yr)")
+            print(f"    {artist} - {title}: {old} -> {new}  (shift={old - new}yr)")
 
 
 if __name__ == "__main__":
