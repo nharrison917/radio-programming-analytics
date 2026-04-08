@@ -26,7 +26,7 @@ def main():
 
     parser.add_argument(
         "mode",
-        choices=["scrape", "weekly", "analyze", "backfill", "audit", "enrich-meta", "mb-enrich"],
+        choices=["scrape", "weekly", "analyze", "cluster", "backfill", "audit", "enrich-meta", "mb-enrich"],
         help="Which job to run"
     )
     parser.add_argument("--start", type=str, help="ISO start datetime (YYYY-MM-DDTHH:MM)")
@@ -59,7 +59,22 @@ def main():
 
     elif args.mode == "analyze":
         from analytics.analysis import run_analysis
+        from analytics.era_continuity import run_era_continuity
+        from analytics.boxplot_release_year import build_release_year_boxplot
+        from analytics.heatmap_weekly_density import run_heatmap_weekly_density
+        from analytics.heatmap_avg_release_year import run_heatmap_avg_release_year
+        from analytics.wednesday_freshness import run_wednesday_freshness
+
         run_analysis()
+        run_era_continuity()
+        build_release_year_boxplot()
+        run_heatmap_weekly_density()
+        run_heatmap_avg_release_year()
+        run_wednesday_freshness()
+
+    elif args.mode == "cluster":
+        from analytics.show_clustering import run_show_clustering
+        run_show_clustering()
 
     elif args.mode == "backfill":
         if not args.start or not args.end:

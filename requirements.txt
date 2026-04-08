@@ -7,3 +7,5 @@ plotly>=6.6
 RapidFuzz>=3.14
 python-dotenv>=1.2
 ftfy>=6.3
+scipy>=1.13
+scikit-learn>=1.5
