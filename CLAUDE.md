@@ -18,8 +18,10 @@ Spotify match rate (as of 2026-03-31).
    manual override via `manual_spotify_overrides`. Override IDs must be verified --
    bad IDs log an ATTENTION warning via `override_failures` counter.
 4. **Analytics** -- `analytics/analysis.py`, `analytics/visuals.py`,
-   `analytics/boxplot_release_year.py`, `analytics/heatmap_*.py`
-   Shannon entropy, freshness %, avg release year, artist breadth, weekly fresh tracks.
+   `analytics/boxplot_release_year.py`, `analytics/heatmap_*.py`,
+   `analytics/era_continuity.py`, `analytics/wednesday_freshness.py`
+   Shannon entropy, freshness %, avg release year, artist breadth, weekly fresh tracks,
+   era continuity metrics. All outputs generated via `python rs_main.py analyze`.
 
 ## Entry points
 
@@ -145,3 +147,11 @@ Configured in `config.py`:
 - `scratch/` contains ad-hoc SQL and debug scripts -- not production code
 - `requirements.txt` must be saved UTF-8 (was UTF-16 once, broke pip installs)
 - No emoji in terminal output -- Windows cp1252 crashes on non-ASCII in some contexts
+
+## AI Codex Index
+
+This project has a pre-built index in `.ai-codex/` to reduce cold-start token usage.
+Read these files at the start of each session before exploring the codebase:
+
+- `.ai-codex/lib.md`       -- all functions and classes, grouped by module
+- `.ai-codex/structure.md` -- directory tree and key file descriptions

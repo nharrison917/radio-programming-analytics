@@ -8,6 +8,37 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `analytics/show_clustering.py`: four-pass hierarchical show clustering analysis
+  - Pass 1: scalar features (artist entropy, unique artists/hr, avg release year,
+    freshness %, exclusive artist %, era continuity mean gap)
+  - Pass 2: repertoire similarity -- binary cosine similarity over rolling 60-day
+    window (top-10 artists + top-20 tracks per show, 153-dimension union vocabulary)
+  - Pass 3: combined unweighted (scalar features + 2D MDS embedding of repertoire)
+  - Pass 4: combined equal-weight (MDS dimensions scaled x3 to match scalar vote count)
+  - All passes use Ward linkage; outputs are dendrograms and feature heatmaps
+  - `scipy` and `scikit-learn` added to requirements.txt
+- `rs_main.py`: `cluster` mode -- `python rs_main.py cluster` runs all four passes
+  and regenerates all cluster outputs; kept separate from `analyze`
+- `ANALYSIS.md`: new document; Clustering section covering method, findings, and
+  interpretation. Key finding: three-cluster structure (main rotation core / oldies
+  tier / specialty outliers) is stable across all four passes and both feature
+  families, confirming the structure is not an artifact of weighting.
+
+---
+
+## [0.9.1] - 2026-04-02
+
+### Changed
+- `analytics/heatmap_weekly_density.py`: sparse cells (fewer than 3 date observations)
+  are now nulled out and masked from the colour scale rather than filled with 0.
+  Previously, near-zero Sunday slots anchored the scale floor and compressed the
+  contrast across all other cells. Behaviour now matches `heatmap_avg_release_year.py`.
+
+---
+
 ## [0.9.0] - 2026-03-29
 
 ### Phase Two: Release Year Accuracy (see PHASE_TWO.md)
