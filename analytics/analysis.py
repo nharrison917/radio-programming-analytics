@@ -40,9 +40,20 @@ def load_base_dataset():
         c.display_title AS normalized_title,
         c.spotify_album_release_year,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year,
         c.spotify_duration_ms
@@ -240,9 +251,20 @@ def top_fresh_tracks_by_week(window_months=12, top_n=5):
         c.norm_artist,
         c.display_title,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year
     FROM plays p

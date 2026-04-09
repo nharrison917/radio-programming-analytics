@@ -64,9 +64,20 @@ def _load_plays():
         c.canonical_id,
         c.norm_artist,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year
     FROM plays p
@@ -149,9 +160,20 @@ def compute_scalar_features(df):
             p.station_show,
             DATE(p.play_ts) AS play_date,
             CASE
-                WHEN ct.mb_first_release_year IS NOT NULL
-                 AND ct.mb_first_release_year < ct.spotify_album_release_year
-                THEN ct.mb_first_release_year
+                WHEN ct.manual_year_override IS NOT NULL
+                THEN ct.manual_year_override
+                WHEN ct.mb_isrc_year IS NOT NULL
+                 AND ct.mb_title_artist_year IS NOT NULL
+                 AND ct.mb_isrc_year < ct.spotify_album_release_year
+                 AND ct.mb_title_artist_year < ct.spotify_album_release_year
+                THEN CASE WHEN ct.mb_isrc_year < ct.mb_title_artist_year
+                          THEN ct.mb_isrc_year ELSE ct.mb_title_artist_year END
+                WHEN ct.mb_isrc_year IS NOT NULL
+                 AND ct.mb_isrc_year < ct.spotify_album_release_year
+                THEN ct.mb_isrc_year
+                WHEN ct.mb_title_artist_year IS NOT NULL
+                 AND ct.mb_title_artist_year < ct.spotify_album_release_year
+                THEN ct.mb_title_artist_year
                 ELSE ct.spotify_album_release_year
             END AS yr,
             ROW_NUMBER() OVER (

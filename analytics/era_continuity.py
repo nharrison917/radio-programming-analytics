@@ -39,9 +39,20 @@ WITH ranked AS (
         p.station_show,
         DATE(p.play_ts)  AS play_date,
         CASE
-            WHEN ct.mb_first_release_year IS NOT NULL
-             AND ct.mb_first_release_year < ct.spotify_album_release_year
-            THEN ct.mb_first_release_year
+            WHEN ct.manual_year_override IS NOT NULL
+            THEN ct.manual_year_override
+            WHEN ct.mb_isrc_year IS NOT NULL
+             AND ct.mb_title_artist_year IS NOT NULL
+             AND ct.mb_isrc_year < ct.spotify_album_release_year
+             AND ct.mb_title_artist_year < ct.spotify_album_release_year
+            THEN CASE WHEN ct.mb_isrc_year < ct.mb_title_artist_year
+                      THEN ct.mb_isrc_year ELSE ct.mb_title_artist_year END
+            WHEN ct.mb_isrc_year IS NOT NULL
+             AND ct.mb_isrc_year < ct.spotify_album_release_year
+            THEN ct.mb_isrc_year
+            WHEN ct.mb_title_artist_year IS NOT NULL
+             AND ct.mb_title_artist_year < ct.spotify_album_release_year
+            THEN ct.mb_title_artist_year
             ELSE ct.spotify_album_release_year
         END AS yr,
         ROW_NUMBER() OVER (
