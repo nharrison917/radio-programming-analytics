@@ -24,7 +24,7 @@ released." Coverage is strongest for pre-2000 catalog -- exactly the population 
 affected by the compilation problem.
 
 Analytics layer resolves year via a priority chain:
-  mb_first_release_year -> spotify_album_release_year
+  manual_year_override -> min(mb_isrc_year, mb_title_artist_year) -> spotify_album_release_year
 
 Tracks that remain unresolved after MB lookup are flagged as "year uncertain" in output.
 
@@ -40,9 +40,12 @@ Add columns to `canonical_tracks` via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
 |---|---|---|
 | `spotify_album_type` | TEXT | "album", "single", or "compilation" |
 | `spotify_isrc` | TEXT | ISRC from Spotify external_ids |
-| `mb_first_release_year` | INTEGER | Earliest release year from MusicBrainz |
-| `mb_lookup_status` | TEXT | PENDING / SUCCESS / FAILED / NO_ISRC / SKIPPED |
-| `mb_looked_up_at` | TEXT | Timestamp of last MB lookup attempt |
+| `mb_isrc_year` | INTEGER | Earliest year from MusicBrainz ISRC lookup |
+| `mb_lookup_status` | TEXT | SUCCESS / FAILED / NO_ISRC (ISRC pass) |
+| `mb_looked_up_at` | TEXT | Timestamp of last MB ISRC lookup attempt |
+| `mb_title_artist_year` | INTEGER | Earliest year from MB title/artist search |
+| `mb_ta_status` | TEXT | SUCCESS / FAILED (title/artist pass) |
+| `manual_year_override` | INTEGER | Human-verified correct year; overrides all automated sources |
 
 Migration must be safe to run on an existing DB (idempotent). SQLite `ADD COLUMN`
 is non-destructive. Existing SUCCESS records get `mb_lookup_status = NULL` until
@@ -150,7 +153,7 @@ Rate limit: 1 request/second. Add `User-Agent` header identifying the project
 1. Parse `first-release-date` from MB response (may be YYYY, YYYY-MM, or YYYY-MM-DD)
 2. Extract year component
 3. Validate against plausibility bounds (1920 to current_year + 1) -- same rule as Spotify
-4. If valid: store in `mb_first_release_year`, set `mb_lookup_status = "SUCCESS"`
+4. If valid: store in `mb_isrc_year`, set `mb_lookup_status = "SUCCESS"`
 5. If MB returns no usable date: `mb_lookup_status = "FAILED"`
 6. If ISRC not found in MB: `mb_lookup_status = "FAILED"`
 
@@ -196,9 +199,20 @@ MB is reporting a remaster year for a different ISRC version). Discard it.
 
 ```sql
 CASE
-    WHEN ct.mb_first_release_year IS NOT NULL
-     AND ct.mb_first_release_year < ct.spotify_album_release_year
-    THEN ct.mb_first_release_year
+    WHEN ct.manual_year_override IS NOT NULL
+    THEN ct.manual_year_override
+    WHEN ct.mb_isrc_year IS NOT NULL
+     AND ct.mb_title_artist_year IS NOT NULL
+     AND ct.mb_isrc_year < ct.spotify_album_release_year
+     AND ct.mb_title_artist_year < ct.spotify_album_release_year
+    THEN CASE WHEN ct.mb_isrc_year < ct.mb_title_artist_year
+              THEN ct.mb_isrc_year ELSE ct.mb_title_artist_year END
+    WHEN ct.mb_isrc_year IS NOT NULL
+     AND ct.mb_isrc_year < ct.spotify_album_release_year
+    THEN ct.mb_isrc_year
+    WHEN ct.mb_title_artist_year IS NOT NULL
+     AND ct.mb_title_artist_year < ct.spotify_album_release_year
+    THEN ct.mb_title_artist_year
     ELSE ct.spotify_album_release_year
 END AS best_year
 ```
@@ -209,7 +223,7 @@ All year-dependent queries switch from `spotify_album_release_year` to `best_yea
 
 Tracks where year is still uncertain after MB lookup:
   `spotify_album_type = "compilation" AND (mb_lookup_status != "SUCCESS"
-    OR mb_first_release_year >= spotify_album_release_year)`
+    OR mb_isrc_year >= spotify_album_release_year)`
   OR remaster heuristic match AND same condition
 
 These can be:
@@ -227,7 +241,7 @@ Update "Data integrity rules" section with the best_year resolution logic.
 **Acceptance criteria:**
 - Era continuity numbers change materially for 10@10 (expected: continuity % rises)
 - Box plot release year distribution shifts earlier for older shows
-- No analytics crash when mb_first_release_year is NULL (CASE handles it)
+- No analytics crash when mb_isrc_year or mb_title_artist_year is NULL (CASE handles it)
 - David Bowie - Fame remains at 1975 (MB correction rejected, not applied)
 
 ---
@@ -332,15 +346,13 @@ fall in the timestamp sequence.
 ## Phase Two implementation order
 
 1. Stage 1 (schema) -- COMPLETE
-2. Stage 2 (Spotify backfill + enrichment.py update) -- IN PROGRESS
-   Backfill is rate-limited to ~600 records/day. Run daily until complete:
-     python rs_main.py enrich-meta
-     python rs_main.py mb-enrich
-   ~4 more daily runs needed as of 2026-03-29 (600/2559 done).
-3. Stage 3 (MusicBrainz lookup) -- COMPLETE for backfilled records; runs after each
-   daily enrich-meta batch as above.
+2. Stage 2 (Spotify backfill + enrichment.py update) -- COMPLETE
+   All 2,726 SUCCESS tracks have spotify_isrc and spotify_album_type populated (2026-04-09).
+   enrich-meta and mb-enrich remain part of the weekly cadence for new tracks going forward.
+3. Stage 3 (MusicBrainz lookup) -- COMPLETE. 743 SUCCESS, 43 FAILED, 0 eligible remaining.
+   mb-enrich runs weekly to process newly enriched tracks (small batch ongoing).
 4. Stage 4 (analytics) -- COMPLETE. best_year CASE expression wired into all
-   year-dependent queries; results improve incrementally as backfill completes.
+   year-dependent queries.
 5. Stage 5 (10@10 show boundary + alias) -- PENDING
 
 Stages 1-2 are low risk. Stage 3 introduces a new external API dependency.
@@ -350,10 +362,10 @@ Stage 4 changes analytics outputs -- re-run all visuals after Stage 3 data is po
 
 Run after Stage 4 implementation and again after the full backfill completes:
 
-- [ ] `python rs_main.py mb-enrich` reports 0 eligible records (backfill done)
-- [ ] David Bowie - Fame `best_year` = 1975 (MB correction correctly rejected)
-- [ ] The Clash - I Fought The Law `best_year` = 1979 (MB correction correctly applied)
-- [ ] The Allman Brothers Band - Jessica `best_year` = 1973 (corrected from 2013)
+- [x] `python rs_main.py mb-enrich` reports 0 eligible records (backfill done -- 2026-04-09)
+- [x] David Bowie - Fame `best_year` = 1975 (MB correction correctly rejected -- mb=2016, spotify=1975, rule keeps 1975)
+- [x] The Clash - I Fought The Law `best_year` = 1979 (MB correction correctly applied -- mb=1979, spotify=2013)
+- [x] The Allman Brothers Band - Jessica `best_year` = 1973 (corrected from 2013 -- mb=1973)
 - [ ] **10 @ 10 era continuity % rises materially** from current 59.6% -- this is the
       primary end-to-end validation that year corrections are flowing through to analytics.
       Expect a significant increase once compilation/remaster years are corrected for

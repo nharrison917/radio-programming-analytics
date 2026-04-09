@@ -1,4 +1,4 @@
-# Library Exports (generated 2026-04-08)
+# Library Exports (generated 2026-04-09)
 # fn=function, class=class
 
 ## (root)/
@@ -88,11 +88,13 @@ fetch.py
   fn is_allowed_url
   fn fetch_url
 mb_enrichment.py
-  fn _is_remaster
   fn _earliest_valid_year
   fn _lookup_isrc
+  fn _clean_secondary_types
+  fn _lookup_title_artist
   fn run_mb_enrichment
-  fn _print_summary
+  fn _print_pass_summary
+  fn _build_result
 normalization.py
   fn normalize_new_plays
 normalization_logic.py

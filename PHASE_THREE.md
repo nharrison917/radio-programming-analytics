@@ -46,12 +46,12 @@ is a separate bug in `normalization_logic.py` or the canonical's `display_artist
 
 Mirror the existing `manual_spotify_overrides` pattern: a hand-curated table of IDs
 that a script resolves into metadata. The difference is we store a MB recording MBID
-instead of a Spotify track ID, and the only output is `mb_first_release_year`.
+instead of a Spotify track ID, and the only output is `mb_isrc_year`.
 
 These tracks remain `spotify_status = "FAILED"` -- we are not resolving them to
 Spotify. We are giving them a year so they participate correctly in year-dependent
 analytics. The `best_year` CASE expression already in the analytics layer will pick
-up `mb_first_release_year` automatically once populated.
+up `mb_isrc_year` automatically once populated.
 
 ---
 
@@ -87,7 +87,7 @@ want a failed insert to cascade.
 
 **New file:** `scraper/mb_manual.py`
 
-Reads all rows from `manual_mb_overrides` where `canonical_tracks.mb_first_release_year`
+Reads all rows from `manual_mb_overrides` where `canonical_tracks.mb_isrc_year`
 is NULL or `mb_lookup_status` is not already `SUCCESS`.
 
 For each row:
@@ -95,7 +95,7 @@ For each row:
 1. Call `GET https://musicbrainz.org/ws/2/recording/{mbid}?inc=releases&fmt=json`
 2. Extract `first-release-date` from the recording object (YYYY, YYYY-MM, or YYYY-MM-DD)
 3. Validate year against 1920--current_year+1 bounds (same rule as Phase Two)
-4. Write `mb_first_release_year` and `mb_lookup_status = "SUCCESS"` to `canonical_tracks`
+4. Write `mb_isrc_year` and `mb_lookup_status = "SUCCESS"` to `canonical_tracks`
    on success, or `mb_lookup_status = "FAILED"` if the MBID returns no usable date
 
 Rate limit: 1 request/second (same MB requirement as Phase Two). Sleep after each call.
@@ -297,7 +297,7 @@ Print after each run:
 
 ## Limitations
 
-1. **Year semantics for covers:** `mb_first_release_year` for a Lumineers cover of
+1. **Year semantics for covers:** `mb_isrc_year` for a Lumineers cover of
    "The Weight" may resolve to 1968 (The Band original) if MB has no entry for the
    Lumineers recording itself. Whether that year is the right attribution depends on
    analysis context -- it is correct for "when was this song written" but wrong for
