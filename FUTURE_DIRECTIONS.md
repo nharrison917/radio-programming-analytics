@@ -17,12 +17,10 @@ avg_best_year=2025.8, era_continuity_mean_gap=0.34.
 - The `era_continuity_mean_gap` of 0.34 makes it the tightest show in the dataset
   alongside 10@10 -- that observation is new and worth capturing.
 
-**When to do this:**
-After the dataset has grown further (Phase Three complete, more scrape data) so the
-updated ANALYSIS.md reflects a stable, larger dataset rather than a snapshot that
-will be quickly outdated again.
-
-**Status: Deferred.** Linked to dataset growth milestone.
+**Status: Complete (2026-04-10).** Updated ahead of the dataset growth milestone --
+post-segmentation numbers are stable enough to be worth capturing now. All stale
+values corrected; era sequencing ranking updated; cosine similarity numbers verified
+against the live heatmap output.
 
 ---
 

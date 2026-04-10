@@ -8,6 +8,25 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.2.1] - 2026-04-10
+
+Documentation updates to reflect post-segmentation clustering values.
+
+### Changed
+- `ANALYSIS.md`: corrected all stale numbers now that all three shows are segmented:
+  - Oldies tier avg release year 1987 -> 1979 (reflects segmented 10@10 values)
+  - "90's at Night" era sequencing claim demoted from "tightest in the dataset" to
+    "tightest among the specialty outliers" (This Just In at 0.34 and 10@10 at 0.60
+    are now tighter post-segmentation)
+  - "This Just In with Meg White": freshness 89% -> 100%, avg_best_year 2023 -> 2025.8;
+    added era_continuity_mean_gap=0.34 observation (tightest in dataset alongside 10@10)
+  - Closest repertoire pair: Coach/Peak Music (0.80) -> Jimmy Fink/Peak Music (0.77);
+    10@10 pair 0.77 -> 0.73; This Just In similarity range 0.10-0.23 -> 0.10-0.20
+- `README.md`: added show clustering bullet to Analytics section; added closing pointer
+  to ANALYSIS.md and outputs directory
+
+---
+
 ## [1.2.0] - 2026-04-10
 
 Extended segmentation to "This Just In with Meg White" and refactored segmentation

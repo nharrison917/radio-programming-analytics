@@ -72,11 +72,20 @@ Computes structured programming metrics:
 - Wednesday freshness analysis: tests station's public programming claim that
   each Wednesday hour features at least one new track
 - Weekly fresh track reports (top 5 most-played recent tracks per ISO week)
+- **Show clustering**: four-pass hierarchical clustering (Ward linkage) comparing
+  shows on scalar programming features (era, freshness, rotation depth, exclusivity)
+  and repertoire overlap (binary cosine similarity over a rolling 60-day window).
+  Passes include scalar-only, repertoire-only, and two combined weightings to test
+  structural robustness
 
 **Release year accuracy:** all year-dependent analytics use a `best_year` derived
 field that prefers the MusicBrainz original release year over the Spotify album year
 when MB data is available and strictly earlier. This corrects for the systematic
 error of tracks matched to compilation or remaster albums.
+
+Detailed findings, methods, and cluster narratives are documented in
+[ANALYSIS.md](ANALYSIS.md). Interactive output files are in
+[analytics/outputs/](analytics/outputs/).
 
 ------------------------------------------------------------------------
 

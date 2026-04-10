@@ -61,13 +61,13 @@ This tests whether the Pass 3 structure is an artifact of scalar overweighting.
 **Consistent three-cluster structure across all four passes:**
 
 - **Main rotation core** -- Coach, Peak Music, Chris Herrmann, Jimmy Fink, Pam Landry.
-  Tight cluster on both scalars and repertoire. Coach and Peak Music are the closest
-  pair in the dataset (cosine similarity 0.80 on repertoire). These shows share
+  Tight cluster on both scalars and repertoire. Jimmy Fink and Peak Music are the closest
+  pair in the dataset (cosine similarity 0.77 on repertoire). These shows share
   the same artists (U2, Black Keys, Noah Kahan, Tedeschi Trucks, Bruce Springsteen)
   and draw from the same track pool.
 
-- **Oldies tier** -- 10@10 and 10@10 Weekend Replay (cosine similarity 0.77, expected
-  as the Replay is a rebroadcast). Average release year 1987. Adjacent to the main
+- **Oldies tier** -- 10@10 and 10@10 Weekend Replay (cosine similarity 0.73, expected
+  as the Replay is a rebroadcast). Average release year 1979. Adjacent to the main
   core in scalar space but clearly separated by era and repertoire. Andy Bale sits
   between this tier and the core in the combined passes.
 
@@ -75,13 +75,15 @@ This tests whether the Pass 3 structure is an artifact of scalar overweighting.
   all other shows:
   - *90's at Night*: cosine similarity 0.00 with every other show. Programs a
     completely distinct catalog (Nirvana, Pearl Jam, Red Hot Chili Peppers, etc.).
-    Tightest era sequencing in the dataset (mean_gap = 4.1 yrs).
+    Tightest era sequencing among the specialty outliers (mean_gap = 4.1 yrs).
   - *Sunday Mornings Over Easy*: near-zero similarity (0.00-0.10). Folk/acoustic/
     Americana format (Grateful Dead, Norah Jones, Bob Dylan, Iron and Wine).
     High exclusive_artist_pct despite not being a genre-locked format.
-  - *This Just In with Meg White*: low but non-zero similarity (0.10-0.23).
+  - *This Just In with Meg White*: low but non-zero similarity (0.10-0.20).
     Contemporary/indie lean (Noah Kahan, Sheepdogs, Metric, Bleachers). Extreme
-    outlier on freshness (89%) and avg_best_year (2023).
+    outlier on freshness (100%) and avg_best_year (2025.8). Also the tightest era
+    sequencing in the dataset (mean_gap = 0.34), alongside 10@10 (0.60) -- both
+    are density-segmented shows with rigid single-era formats.
 
 **Cluster robustness:**
 
