@@ -40,12 +40,26 @@ def load_base_dataset():
         c.display_title AS normalized_title,
         c.spotify_album_release_year,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year,
-        c.spotify_duration_ms
+        c.spotify_duration_ms,
+        c.spotify_status,
+        c.mb_lookup_status,
+        c.mb_ta_status
     FROM plays p
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
@@ -240,15 +254,29 @@ def top_fresh_tracks_by_week(window_months=12, top_n=5):
         c.norm_artist,
         c.display_title,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year
     FROM plays p
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
     WHERE p.is_music_show = 1
+      AND c.spotify_status = 'SUCCESS'
+      AND c.mb_lookup_status IS NOT NULL
+      AND c.mb_ta_status IS NOT NULL
       AND c.spotify_album_release_date >= DATE('now', :cutoff)
     """
 
@@ -302,15 +330,22 @@ def run_analysis():
     df = load_base_dataset()
     logging.info(f"Loaded {len(df)} play records")
 
+    df_year = df[
+        (df["spotify_status"] == "SUCCESS")
+        & df["mb_lookup_status"].notna()
+        & df["mb_ta_status"].notna()
+    ].copy()
+    logging.info(f"Year-quality subset: {len(df_year)} records (fully enriched)")
+
     # --- Structural metrics ---
     ua = unique_artists_per_show(df)
     uah = unique_artists_per_hour(df)
     ent = entropy_by_show(df)
     exc = exclusive_artist_percentage(df)
 
-    # --- Enrichment metrics ---
-    aay = average_album_year_by_show(df)
-    fresh = freshness_percentage_by_show(df)
+    # --- Enrichment metrics (year-quality subset only) ---
+    aay = average_album_year_by_show(df_year)
+    fresh = freshness_percentage_by_show(df_year)
 
     # --- Artist breadth ---
     breadth = artist_breadth(df)

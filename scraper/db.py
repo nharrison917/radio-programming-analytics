@@ -11,18 +11,45 @@ def migrate_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    # -- Phase Two: release year accuracy via ISRC + MusicBrainz --
     cur.execute("PRAGMA table_info(canonical_tracks)")
     existing = {row[1] for row in cur.fetchall()}
 
+    # -- Phase Two: release year accuracy via ISRC + MusicBrainz --
+    # Note: mb_first_release_year is intentionally absent here; it is handled
+    # by the rename migration below (existing DBs) or added as mb_isrc_year
+    # directly via phase_two_rev (fresh DBs).
     new_columns = [
-        ("spotify_album_type",    "TEXT"),
-        ("spotify_isrc",          "TEXT"),
-        ("mb_first_release_year", "INTEGER"),
-        ("mb_lookup_status",      "TEXT"),
-        ("mb_looked_up_at",       "TEXT"),
+        ("spotify_album_type", "TEXT"),
+        ("spotify_isrc",       "TEXT"),
+        ("mb_lookup_status",   "TEXT"),
+        ("mb_looked_up_at",    "TEXT"),
     ]
     for col_name, col_type in new_columns:
+        if col_name not in existing:
+            cur.execute(
+                f"ALTER TABLE canonical_tracks ADD COLUMN {col_name} {col_type}"
+            )
+            print(f"  migrate_db: added column canonical_tracks.{col_name}")
+
+    # -- Phase Two (revision): rename mb_first_release_year -> mb_isrc_year;
+    #    add mb_title_artist_year, mb_ta_status, manual_year_override.
+    #    RENAME COLUMN requires SQLite 3.25+ (Python 3.11 ships with 3.39+).
+    if "mb_first_release_year" in existing and "mb_isrc_year" not in existing:
+        cur.execute(
+            "ALTER TABLE canonical_tracks "
+            "RENAME COLUMN mb_first_release_year TO mb_isrc_year"
+        )
+        print("  migrate_db: renamed mb_first_release_year -> mb_isrc_year")
+        existing.add("mb_isrc_year")
+        existing.discard("mb_first_release_year")
+
+    phase_two_rev = [
+        ("mb_isrc_year",           "INTEGER"),
+        ("mb_title_artist_year",   "INTEGER"),
+        ("mb_ta_status",           "TEXT"),
+        ("manual_year_override",   "INTEGER"),
+    ]
+    for col_name, col_type in phase_two_rev:
         if col_name not in existing:
             cur.execute(
                 f"ALTER TABLE canonical_tracks ADD COLUMN {col_name} {col_type}"

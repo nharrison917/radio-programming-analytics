@@ -1,4 +1,4 @@
-# Library Exports (generated 2026-04-08)
+# Library Exports (generated 2026-04-10)
 # fn=function, class=class
 
 ## (root)/
@@ -31,6 +31,11 @@ era_continuity.py
   fn chart_mean_gap
   fn chart_fingerprint
   fn chart_buckets
+  fn _modal_era
+  fn _segment_block
+  fn load_10at10_tracks
+  fn compute_segmented_metrics
+  fn print_segmented_comparison
   fn run_era_continuity
 heatmap_avg_release_year.py
   fn run_heatmap_avg_release_year
@@ -88,11 +93,14 @@ fetch.py
   fn is_allowed_url
   fn fetch_url
 mb_enrichment.py
-  fn _is_remaster
   fn _earliest_valid_year
   fn _lookup_isrc
+  fn _clean_secondary_types
+  fn _lookup_title_artist
   fn run_mb_enrichment
-  fn _print_summary
+  fn _print_pass_summary
+  fn _integrity_check
+  fn _build_result
 normalization.py
   fn normalize_new_plays
 normalization_logic.py

@@ -45,7 +45,7 @@ ingest -> normalize -> seed canonicals -> map plays -> audit
 | Table | Purpose | Key columns |
 |---|---|---|
 | `plays` | Raw play records | `id`, `play_ts`, `station_show`, `is_music_show`, `title`, `artist`, `norm_key_core` |
-| `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_first_release_year`, `mb_lookup_status` |
+| `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_isrc_year`, `mb_lookup_status`, `mb_title_artist_year`, `mb_ta_status`, `manual_year_override` |
 | `canonical_artists` | Per-artist Spotify metadata (career-level) | `spotify_artist_id`, `artist_name`, `earliest_release_year`, `enrichment_status` |
 | `plays_to_canonical` | Many-to-one mapping of plays to canonicals | `play_id`, `canonical_id`, `match_method` |
 | `manual_spotify_overrides` | Hand-supplied Spotify IDs for FAILED tracks | `canonical_id`, `spotify_id` |
@@ -95,28 +95,43 @@ Only `FAILED` records are actionable. `NO_MATCH` and `NON_MUSIC` are closed.
 - Validate numeric fields from Spotify against domain bounds before writing to DB.
   Log and null implausible values -- do not store silently.
 
-### best_year resolution (Phase Two)
+### best_year resolution (Phase Two, revised)
 
-All year-dependent analytics use `best_year`, not `spotify_album_release_year` directly:
+All year-dependent analytics use `best_year`, not `spotify_album_release_year` directly.
+Two MB sources are stored separately and both contribute to resolution:
+
+- `mb_isrc_year` -- year from MusicBrainz ISRC endpoint (precise, version-specific)
+- `mb_title_artist_year` -- year from MB recording text search filtered to studio
+  Album/Single release-groups (broader coverage, less precise)
+- `manual_year_override` -- human-verified correct year; takes unconditional priority
 
 ```sql
 CASE
-    WHEN ct.mb_first_release_year IS NOT NULL
-     AND ct.mb_first_release_year < ct.spotify_album_release_year
-    THEN ct.mb_first_release_year
+    WHEN ct.manual_year_override IS NOT NULL
+    THEN ct.manual_year_override
+    WHEN ct.mb_isrc_year IS NOT NULL
+     AND ct.mb_title_artist_year IS NOT NULL
+     AND ct.mb_isrc_year < ct.spotify_album_release_year
+     AND ct.mb_title_artist_year < ct.spotify_album_release_year
+    THEN CASE WHEN ct.mb_isrc_year < ct.mb_title_artist_year
+              THEN ct.mb_isrc_year ELSE ct.mb_title_artist_year END
+    WHEN ct.mb_isrc_year IS NOT NULL
+     AND ct.mb_isrc_year < ct.spotify_album_release_year
+    THEN ct.mb_isrc_year
+    WHEN ct.mb_title_artist_year IS NOT NULL
+     AND ct.mb_title_artist_year < ct.spotify_album_release_year
+    THEN ct.mb_title_artist_year
     ELSE ct.spotify_album_release_year
 END AS best_year
 ```
 
-MB year is only accepted when it is strictly earlier than Spotify's -- this handles the
-case where Spotify returns the ISRC of a remaster version, causing MB to report the
-remaster year instead of the original (e.g. Bowie - Fame: Spotify=1975 correct, MB
-would return 2016 for the remaster ISRC; the rule keeps 1975).
+Each MB source is only accepted when strictly earlier than Spotify's year. When both
+are available and both are earlier, the minimum is taken. This handles the remaster-ISRC
+problem (e.g. Bowie - Fame: Spotify=1975, MB ISRC=2016 -- rule keeps 1975).
 
-`spotify_album_type` and `spotify_isrc` are backfilled for existing records via
-`python rs_main.py enrich-meta` (~600 records/day Spotify quota). After each
-`enrich-meta` run, follow with `python rs_main.py mb-enrich` to process newly
-eligible compilation/remaster records.
+`mb-enrich` now runs two passes: ISRC lookup (all SUCCESS tracks) then title/artist
+search (all SUCCESS tracks). Both statuses are tracked independently: `mb_lookup_status`
+for ISRC, `mb_ta_status` for title/artist.
 
 ## Outputs
 

@@ -18,9 +18,20 @@ def run_heatmap_avg_release_year():
     SELECT
         p.play_ts,
         CASE
-            WHEN c.mb_first_release_year IS NOT NULL
-             AND c.mb_first_release_year < c.spotify_album_release_year
-            THEN c.mb_first_release_year
+            WHEN c.manual_year_override IS NOT NULL
+            THEN c.manual_year_override
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_title_artist_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN CASE WHEN c.mb_isrc_year < c.mb_title_artist_year
+                      THEN c.mb_isrc_year ELSE c.mb_title_artist_year END
+            WHEN c.mb_isrc_year IS NOT NULL
+             AND c.mb_isrc_year < c.spotify_album_release_year
+            THEN c.mb_isrc_year
+            WHEN c.mb_title_artist_year IS NOT NULL
+             AND c.mb_title_artist_year < c.spotify_album_release_year
+            THEN c.mb_title_artist_year
             ELSE c.spotify_album_release_year
         END AS best_year
     FROM plays p
@@ -29,6 +40,9 @@ def run_heatmap_avg_release_year():
     JOIN canonical_tracks c
         ON ptc.canonical_id = c.canonical_id
     WHERE p.is_music_show = 1
+      AND c.spotify_status = 'SUCCESS'
+      AND c.mb_lookup_status IS NOT NULL
+      AND c.mb_ta_status IS NOT NULL
       AND c.spotify_album_release_year IS NOT NULL
     """
 
