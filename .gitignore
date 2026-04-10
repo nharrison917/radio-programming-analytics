@@ -20,3 +20,7 @@ analytics/outputs/weekly_reports/
 
 run_scraper.bat
 run_weekly.bat
+run_all.bat
+run_all_guarded.bat
+run_all_manual.bat
+last_run.txt
