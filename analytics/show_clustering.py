@@ -84,6 +84,9 @@ def _load_plays():
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
     WHERE p.is_music_show = 1
+      AND c.spotify_status = 'SUCCESS'
+      AND c.mb_lookup_status IS NOT NULL
+      AND c.mb_ta_status IS NOT NULL
     """
     conn = _get_conn()
     df = pd.read_sql_query(q, conn)
@@ -183,7 +186,9 @@ def compute_scalar_features(df):
         FROM plays p
         JOIN plays_to_canonical ptc ON p.id = ptc.play_id
         JOIN canonical_tracks   ct  ON ptc.canonical_id = ct.canonical_id
-        WHERE ct.spotify_album_release_year IS NOT NULL
+        WHERE ct.spotify_status = 'SUCCESS'
+          AND ct.mb_lookup_status IS NOT NULL
+          AND ct.mb_ta_status IS NOT NULL
     ),
     pairs AS (
         SELECT

@@ -8,24 +8,42 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
-## [Unreleased]
+## [1.0.0] - 2026-04-10
+
+Phase Two complete. All year accuracy work (Stages 1-5) and show clustering are now in.
 
 ### Added
-- `analytics/show_clustering.py`: four-pass hierarchical show clustering analysis
-  - Pass 1: scalar features (artist entropy, unique artists/hr, avg release year,
-    freshness %, exclusive artist %, era continuity mean gap)
-  - Pass 2: repertoire similarity -- binary cosine similarity over rolling 60-day
-    window (top-10 artists + top-20 tracks per show, 153-dimension union vocabulary)
-  - Pass 3: combined unweighted (scalar features + 2D MDS embedding of repertoire)
-  - Pass 4: combined equal-weight (MDS dimensions scaled x3 to match scalar vote count)
-  - All passes use Ward linkage; outputs are dendrograms and feature heatmaps
-  - `scipy` and `scikit-learn` added to requirements.txt
-- `rs_main.py`: `cluster` mode -- `python rs_main.py cluster` runs all four passes
-  and regenerates all cluster outputs; kept separate from `analyze`
-- `ANALYSIS.md`: new document; Clustering section covering method, findings, and
-  interpretation. Key finding: three-cluster structure (main rotation core / oldies
-  tier / specialty outliers) is stable across all four passes and both feature
-  families, confirming the structure is not an artifact of weighting.
+- `analytics/show_clustering.py`: four-pass hierarchical show clustering (scalar features,
+  repertoire similarity, combined). Three-cluster structure confirmed stable across all passes.
+  `python rs_main.py cluster` entry point. See `ANALYSIS.md` for findings.
+- `analytics/era_continuity.py`: density-based 10@10 segment detection. Each hour block gets
+  a modal era (±3 yr density window); two consecutive OOB tracks signal segment end; 8-track
+  minimum for a valid segment. Bleed tracks excluded from pair computation at query time.
+  Result: 10@10 continuity 75% -> 99%, era breaks 22% -> 0% after filtering.
+  Segmented metrics saved to `era_continuity_10at10_segmented.csv`.
+- `scraper/db.py`: `mb_title_artist_year`, `mb_ta_status`, `manual_year_override` columns
+  added to `canonical_tracks` (idempotent migration).
+- `scraper/mb_enrichment.py`: second pass -- title/artist search against MB recording endpoint
+  with release-group type filtering (studio Album/Single only). Results stored separately
+  from ISRC pass. Both passes run on all `spotify_status = 'SUCCESS'` tracks.
+- 12 `manual_year_override` corrections applied for tracks that automated enrichment could
+  not resolve (Beatles, Moody Blues, Eric Burdon, Spencer Davis Group, et al.).
+- All year-dependent analytics: enrichment guard (`spotify_status = 'SUCCESS'` AND both MB
+  status columns NOT NULL) ensures only fully-enriched tracks contribute to year metrics.
+
+### Fixed
+- `scraper/mb_enrichment.py`: network-level failures (SSL reset) now retry 3x with 5s/10s
+  backoff; `timeout=30` on all MB API calls.
+- `scraper/mb_enrichment.py`: `_integrity_check()` runs at all exit points; warns on any
+  SUCCESS status / NULL year mismatches.
+- `scraper/mb_enrichment.py`: Lucene special characters in artist/title now quoted to prevent
+  400 errors. ISRCs uppercased before lookup (Spotify stores some lowercase).
+
+### Changed
+- `best_year` resolution updated to use both MB sources:
+  `manual_year_override > min(mb_isrc_year, mb_title_artist_year if < Spotify) > spotify_album_release_year`
+- `analytics/analysis.py`: `average_album_year_by_show` and `freshness_percentage_by_show`
+  now receive the fully-enriched subset (`df_year`); structural metrics unchanged.
 
 ---
 

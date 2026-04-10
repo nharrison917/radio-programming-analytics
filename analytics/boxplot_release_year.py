@@ -17,6 +17,11 @@ def build_release_year_boxplot():
     print("Loading dataset...")
     df = load_base_dataset()
 
+    df = df[
+        (df["spotify_status"] == "SUCCESS")
+        & df["mb_lookup_status"].notna()
+        & df["mb_ta_status"].notna()
+    ].copy()
     df = df.dropna(subset=["best_year"]).copy()
     df["best_year"] = df["best_year"].astype(int)
     df = df[df["best_year"] >= 1920]

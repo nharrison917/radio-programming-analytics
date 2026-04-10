@@ -40,6 +40,9 @@ def run_heatmap_avg_release_year():
     JOIN canonical_tracks c
         ON ptc.canonical_id = c.canonical_id
     WHERE p.is_music_show = 1
+      AND c.spotify_status = 'SUCCESS'
+      AND c.mb_lookup_status IS NOT NULL
+      AND c.mb_ta_status IS NOT NULL
       AND c.spotify_album_release_year IS NOT NULL
     """
 

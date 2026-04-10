@@ -44,6 +44,9 @@ def load_dataset():
     JOIN plays_to_canonical pc ON p.id = pc.play_id
     JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
     WHERE p.is_music_show = 1
+      AND c.spotify_status = 'SUCCESS'
+      AND c.mb_lookup_status IS NOT NULL
+      AND c.mb_ta_status IS NOT NULL
     """
 
     conn = get_connection()

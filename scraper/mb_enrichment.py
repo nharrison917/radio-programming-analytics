@@ -81,11 +81,23 @@ def _lookup_isrc(isrc):
 
     isrc = isrc.upper()
 
-    response = requests.get(
-        f"https://musicbrainz.org/ws/2/isrc/{isrc}",
-        params={"fmt": "json"},
-        headers={"User-Agent": MB_USER_AGENT},
-    )
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                f"https://musicbrainz.org/ws/2/isrc/{isrc}",
+                params={"fmt": "json"},
+                headers={"User-Agent": MB_USER_AGENT},
+                timeout=30,
+            )
+            break
+        except requests.exceptions.ConnectionError as exc:
+            log.warning(f"MB ISRC connection error (attempt {attempt + 1}/3) for {isrc}: {exc}")
+            if attempt < 2:
+                time.sleep(5 * (attempt + 1))
+            else:
+                log.warning(f"MB ISRC all retries exhausted for {isrc} -- skipping")
+                time.sleep(MB_CALL_SLEEP)
+                return None, "FAILED"
     time.sleep(MB_CALL_SLEEP)
 
     if response.status_code == 404:
@@ -143,7 +155,23 @@ def _lookup_title_artist(artist, title):
         f'?query=artist:"{safe_artist}"+AND+recording:"{safe_title}"'
         "&fmt=json&limit=25&inc=releases+release-groups"
     )
-    response = requests.get(url, headers={"User-Agent": MB_USER_AGENT})
+    for attempt in range(3):
+        try:
+            response = requests.get(url, headers={"User-Agent": MB_USER_AGENT}, timeout=30)
+            break
+        except requests.exceptions.ConnectionError as exc:
+            log.warning(
+                f"MB title/artist connection error (attempt {attempt + 1}/3) "
+                f"for {artist} - {title}: {exc}"
+            )
+            if attempt < 2:
+                time.sleep(5 * (attempt + 1))
+            else:
+                log.warning(
+                    f"MB title/artist all retries exhausted for {artist} - {title} -- skipping"
+                )
+                time.sleep(MB_CALL_SLEEP)
+                return None, "FAILED"
     time.sleep(MB_CALL_SLEEP)
 
     if response.status_code == 503:
@@ -277,6 +305,7 @@ def run_mb_enrichment():
 
         except RuntimeError as e:
             log.error(f"MB ISRC enrichment aborted: {e}")
+            _integrity_check(cur)
             conn.close()
             _print_pass_summary(
                 "ISRC", isrc_success, isrc_failed, isrc_no_isrc,
@@ -350,6 +379,7 @@ def run_mb_enrichment():
 
         except RuntimeError as e:
             log.error(f"MB title/artist enrichment aborted: {e}")
+            _integrity_check(cur)
             conn.close()
             _print_pass_summary(
                 "Title/artist", ta_success, ta_failed, 0, ta_corrections, aborted=True
@@ -360,6 +390,7 @@ def run_mb_enrichment():
             )
 
     _print_pass_summary("Title/artist", ta_success, ta_failed, 0, ta_corrections)
+    _integrity_check(cur)
     conn.close()
     return _build_result(
         isrc_success, isrc_failed, isrc_no_isrc, ta_success, ta_failed
@@ -386,6 +417,40 @@ def _print_pass_summary(label, success, failed, no_isrc, corrections, aborted=Fa
         print(f"  Top improvements (largest shift first):")
         for artist, title, old, new in corrections[:15]:
             print(f"    {artist} - {title}: {old} -> {new}  (shift={old - new}yr)")
+
+
+def _integrity_check(cur):
+    """Check for rows where status is SUCCESS but year data is NULL.
+
+    These would indicate a partial write (status committed without data).
+    Logs a warning for each check that finds anomalies; otherwise silent.
+    """
+    checks = [
+        (
+            "mb_lookup_status = 'SUCCESS' AND mb_isrc_year IS NULL",
+            "mb_isrc_year",
+            "mb_lookup_status",
+        ),
+        (
+            "mb_ta_status = 'SUCCESS' AND mb_title_artist_year IS NULL",
+            "mb_title_artist_year",
+            "mb_ta_status",
+        ),
+    ]
+    found_any = False
+    for where, year_col, status_col in checks:
+        cur.execute(
+            f"SELECT COUNT(*) FROM canonical_tracks WHERE {where}"
+        )
+        count = cur.fetchone()[0]
+        if count > 0:
+            log.warning(
+                f"INTEGRITY: {count} row(s) have {status_col}='SUCCESS' "
+                f"but {year_col} IS NULL -- possible partial write"
+            )
+            found_any = True
+    if not found_any:
+        log.info("INTEGRITY: MB year columns consistent (no SUCCESS rows with NULL year)")
 
 
 def _build_result(isrc_s, isrc_f, isrc_n, ta_s, ta_f, aborted=False):
