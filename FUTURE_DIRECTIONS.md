@@ -1,5 +1,31 @@
 # TBD -- Open Questions and Deferred Decisions
 
+## ANALYSIS.md Needs Updating After This Just In Segmentation
+
+**Context:**
+`ANALYSIS.md` was written when "This Just In with Meg White" had unfiltered scalar
+features (all 569 plays, including the throwback tail). The findings section describes
+the show as an "extreme outlier on freshness (89%) and avg_best_year (2023)". Those
+numbers are now stale -- after segmentation the values are freshness=100%,
+avg_best_year=2025.8, era_continuity_mean_gap=0.34.
+
+**Impact on findings to reassess:**
+- The "Specialty outliers" cluster description for "This Just In" needs updated numbers.
+- The show's position in the scalar and combined dendrograms may shift slightly since
+  it is now an even more extreme freshness/era outlier. Worth checking whether this
+  changes any cluster assignments or the overall three-cluster narrative.
+- The `era_continuity_mean_gap` of 0.34 makes it the tightest show in the dataset
+  alongside 10@10 -- that observation is new and worth capturing.
+
+**When to do this:**
+After the dataset has grown further (Phase Three complete, more scrape data) so the
+updated ANALYSIS.md reflects a stable, larger dataset rather than a snapshot that
+will be quickly outdated again.
+
+**Status: Deferred.** Linked to dataset growth milestone.
+
+---
+
 ## Show Attribution Fidelity vs. Programmatic Intent
 
 **Context:**
