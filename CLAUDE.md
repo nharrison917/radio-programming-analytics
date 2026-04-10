@@ -19,9 +19,11 @@ Spotify match rate (as of 2026-03-31).
    bad IDs log an ATTENTION warning via `override_failures` counter.
 4. **Analytics** -- `analytics/analysis.py`, `analytics/visuals.py`,
    `analytics/boxplot_release_year.py`, `analytics/heatmap_*.py`,
-   `analytics/era_continuity.py`, `analytics/wednesday_freshness.py`
+   `analytics/era_continuity.py`, `analytics/wednesday_freshness.py`,
+   `analytics/show_clustering.py`
    Shannon entropy, freshness %, avg release year, artist breadth, weekly fresh tracks,
-   era continuity metrics. All outputs generated via `python rs_main.py analyze`.
+   era continuity metrics, hierarchical show clustering. All outputs generated via
+   `python rs_main.py analyze`.
 
 ## Entry points
 
@@ -64,7 +66,8 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 | `scraper/spotify_backfill.py` | One-time backfill of ISRC + album_type for existing records |
 | `scraper/mb_enrichment.py` | MusicBrainz ISRC lookup for compilation/remaster tracks |
 | `scraper/audit.py` | Post-pipeline data quality checks |
-| `analytics/era_continuity.py` | Consecutive-pair era metrics (continuity %, gap, break rate) |
+| `analytics/era_continuity.py` | Consecutive-pair era metrics; `get_inband_tracks()` for density-based segmentation |
+| `analytics/show_clustering.py` | Four-pass hierarchical show clustering (scalar, repertoire, combined, equal-weight) |
 | `radio_plays.db` | SQLite database (not in repo -- generated at runtime) |
 | `analytics/outputs/enrichment_failures.csv` | FAILED-status canonicals only (actionable) |
 | `.env` | Spotify credentials + scraper contact (not in repo) |
@@ -149,11 +152,32 @@ Configured in `config.py`:
 - `LOW_PLAY_SUPPRESSED_TITLE_SIGNALS` -- title strings that suppress warnings for
   that hour and the following hour
 
-## What's in scope right now (as of 2026-03-24)
+## What's in scope right now (as of 2026-04-10)
 
-- Bug sweep and pipeline friction reduction
-- Moderate expansion of analytics
-- Project is under active review
+- Phase Three: MBID-based manual year overrides (see PHASE_THREE.md)
+- Possible segmentation extension to "90's at Night" and "This Just In" (see FUTURE_DIRECTIONS.md)
+- Dataset growth and continued enrichment runs
+
+## Segmented shows
+
+Some shows require density-based segmentation before their plays can be used in
+show-level analytics. The canonical list is `SEGMENT_SHOWS` in `era_continuity.py`:
+
+```python
+SEGMENT_SHOWS = ("10 @ 10", "10 @ 10 Weekend Replay")
+```
+
+These shows air a themed block (e.g. "10 songs from 1978") surrounded by bleed tracks
+from the station's regular rotation. The bleed tracks are noise -- not part of the
+show's programming identity -- and distort every scalar feature (avg_best_year,
+freshness_pct, era_continuity_mean_gap, artist entropy, etc.).
+
+**Rule:** Any show-level analysis that characterises programming style (era continuity
+charts, show clustering, etc.) must filter SEGMENT_SHOWS to in-band tracks only via
+`get_inband_tracks()` in `era_continuity.py`. Segmented shows are labelled `<name> *`
+in all charts, with annotation `"* = density-segmented pairs"`.
+
+Raw play data is never deleted; segmentation is applied at query/analysis time only.
 
 ## Things to know
 

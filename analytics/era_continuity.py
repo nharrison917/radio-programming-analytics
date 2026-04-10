@@ -147,6 +147,14 @@ def chart_mean_gap(df):
         margin=dict(l=200, r=120, t=60, b=60),
         plot_bgcolor="white",
         paper_bgcolor="white",
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.06,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
     path = OUTPUT_DIR / "era_continuity_mean_gap.html"
@@ -203,6 +211,14 @@ def chart_fingerprint(df):
         height=600,
         plot_bgcolor="white",
         paper_bgcolor="white",
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.06,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
@@ -253,6 +269,14 @@ def chart_buckets(df):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         plot_bgcolor="white",
         paper_bgcolor="white",
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.06,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
     path = OUTPUT_DIR / "era_continuity_buckets.html"
@@ -266,10 +290,13 @@ def chart_buckets(df):
 
 TRACKS_SQL_10AT10 = """
 SELECT
+    p.id                       AS play_id,
     p.play_ts,
     p.station_show,
     DATE(p.play_ts)            AS play_date,
     STRFTIME('%H', p.play_ts)  AS play_hour,
+    ct.canonical_id,
+    ct.norm_artist,
     CASE
         WHEN ct.manual_year_override IS NOT NULL
         THEN ct.manual_year_override
@@ -337,6 +364,42 @@ def _segment_block(years):
     return in_band if len(in_band) >= SEGMENT_MIN_INBAND else None
 
 
+def get_inband_tracks(tracks_df):
+    """
+    Apply density-based segmentation per (station_show, play_date, play_hour) block.
+    Returns a DataFrame containing only in-band tracks from valid segments.
+
+    tracks_df must have columns: play_ts, station_show, play_date, play_hour, best_year
+    Any additional columns (play_id, canonical_id, norm_artist) are preserved.
+    """
+    keep_indices = []
+
+    for (show, date, hour), grp in tracks_df.groupby(
+        ["station_show", "play_date", "play_hour"]
+    ):
+        grp_sorted = grp.sort_values("play_ts")
+        years = grp_sorted["best_year"].tolist()
+        modal = _modal_era(years)
+        if modal is None:
+            continue
+
+        in_band_indices = []
+        consecutive_oob = 0
+        for idx, y in zip(grp_sorted.index, years):
+            if y is not None and abs(y - modal) <= SEGMENT_BAND:
+                in_band_indices.append(idx)
+                consecutive_oob = 0
+            else:
+                consecutive_oob += 1
+                if consecutive_oob >= SEGMENT_CONSECUTIVE_OOB:
+                    break
+
+        if len(in_band_indices) >= SEGMENT_MIN_INBAND:
+            keep_indices.extend(in_band_indices)
+
+    return tracks_df.loc[keep_indices].copy()
+
+
 def load_10at10_tracks():
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query(TRACKS_SQL_10AT10, conn)
@@ -372,7 +435,11 @@ def compute_segmented_metrics(tracks_df):
 
         if in_band and len(in_band) >= 2:
             for y1, y2 in zip(in_band, in_band[1:]):
-                all_pairs.append({"station_show": show, "gap": abs(y2 - y1)})
+                all_pairs.append({
+                    "station_show": show,
+                    "gap": abs(y2 - y1),
+                    "mid_era": (y1 + y2) / 2.0,
+                })
 
     block_stats = pd.DataFrame(block_rows)
 
@@ -384,16 +451,16 @@ def compute_segmented_metrics(tracks_df):
     metrics_rows = []
     for show, grp in pairs_df.groupby("station_show"):
         gaps = grp["gap"]
+        era_cont_pct  = round(100.0 * (gaps <= CONTINUITY_THRESHOLD).sum() / len(gaps), 1)
+        era_break_pct = round(100.0 * (gaps > BREAK_THRESHOLD).sum() / len(gaps), 1)
         metrics_rows.append({
-            "station_show": show,
-            "total_pairs": len(gaps),
-            "mean_abs_gap": round(gaps.mean(), 2),
-            "era_continuity_pct": round(
-                100.0 * (gaps <= CONTINUITY_THRESHOLD).sum() / len(gaps), 1
-            ),
-            "era_break_pct": round(
-                100.0 * (gaps > BREAK_THRESHOLD).sum() / len(gaps), 1
-            ),
+            "station_show":       show,
+            "total_pairs":        len(gaps),
+            "mean_abs_gap":       round(gaps.mean(), 2),
+            "era_continuity_pct": era_cont_pct,
+            "era_break_pct":      era_break_pct,
+            "mid_pct":            round(100.0 - era_cont_pct - era_break_pct, 1),
+            "avg_era":            round(grp["mid_era"].mean(), 0),
         })
 
     return pd.DataFrame(metrics_rows), block_stats
@@ -490,21 +557,35 @@ def run_era_continuity():
 
     print()
 
-    # Save CSV
+    # Save CSV (unmodified -- no asterisks)
     csv_path = OUTPUT_DIR / "era_continuity.csv"
     df.to_csv(csv_path, index=False, encoding="utf-8")
     print(f"Saved: {csv_path}")
     print()
 
-    chart_mean_gap(df)
-    chart_fingerprint(df)
-    chart_buckets(df)
-
     # --- 10@10 segmentation ---
     tracks_10at10 = load_10at10_tracks()
     seg_metrics, block_stats = compute_segmented_metrics(tracks_10at10)
 
-    # Baseline for just the 10@10 shows (subset of df)
+    # Build display_df: replace SEGMENT_SHOWS rows with segmented values + asterisk labels
+    display_df = df.copy()
+    if not seg_metrics.empty:
+        for _, seg_row in seg_metrics.iterrows():
+            show = seg_row["station_show"]
+            mask = display_df["station_show"] == show
+            if not mask.any():
+                continue
+            for col in ["total_pairs", "mean_abs_gap", "era_continuity_pct",
+                        "era_break_pct", "mid_pct", "avg_era"]:
+                if col in seg_row.index:
+                    display_df.loc[mask, col] = seg_row[col]
+            display_df.loc[mask, "station_show"] = show + " *"
+
+    chart_mean_gap(display_df)
+    chart_fingerprint(display_df)
+    chart_buckets(display_df)
+
+    # Baseline for just the 10@10 shows (subset of raw df -- no asterisks)
     baseline_10at10 = df[df["station_show"].isin(SEGMENT_SHOWS)].reset_index(drop=True)
 
     if not seg_metrics.empty:

@@ -8,6 +8,48 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.1.0] - 2026-04-10
+
+Segmentation propagated to all charts and show clustering.
+
+### Added
+- `analytics/era_continuity.py`: `get_inband_tracks(tracks_df)` -- public function that
+  applies density-based segmentation per (show, date, hour) block and returns only in-band
+  rows, preserving all columns. Mirrors `_segment_block` logic but tracks DataFrame indices
+  instead of year values so the full row survives the filter.
+- `analytics/era_continuity.py`: `TRACKS_SQL_10AT10` now selects `play_id`, `canonical_id`,
+  and `norm_artist` (needed by show_clustering to splice filtered rows back into its plays df).
+- `analytics/show_clustering.py`: `_display_label(show)` helper returns `"<show> *"` for
+  `SEGMENT_SHOWS`, plain name otherwise. Applied to all dendrogram label lists and heatmap axes.
+
+### Changed
+- `analytics/era_continuity.py`: `compute_segmented_metrics` now collects `mid_era` per pair
+  and adds `mid_pct` and `avg_era` to the metrics output (required by `chart_fingerprint` and
+  `chart_buckets`).
+- `analytics/era_continuity.py`: `run_era_continuity` now builds a `display_df` after
+  segmentation -- SEGMENT_SHOWS rows replaced with segmented values and asterisk labels --
+  and passes it to all three chart functions. The raw `df` is still used for CSV export and
+  the terminal comparison table (no asterisks in the CSV).
+- `analytics/era_continuity.py`: all three charts (`chart_mean_gap`, `chart_fingerprint`,
+  `chart_buckets`) now include a `"* = density-segmented pairs"` annotation.
+- `analytics/show_clustering.py`: `run_show_clustering` now replaces SEGMENT_SHOWS rows in
+  the plays dataframe with in-band filtered rows before computing scalar features. This
+  corrects `avg_best_year`, `freshness_pct`, and `artist_entropy` for 10@10 shows (~1979
+  avg era, 0% freshness -- correct; was inflated by bleed tracks from current rotation).
+- `analytics/show_clustering.py`: `era_continuity_mean_gap` for SEGMENT_SHOWS is explicitly
+  overridden after `compute_scalar_features`, since that function's inline SQL queries the
+  raw DB and cannot see the filtered dataframe.
+- `analytics/show_clustering.py`: all clustering charts have `"* = density-segmented pairs"`
+  annotation added.
+
+### Result
+- Era continuity charts: "10 @ 10 *" shows ~0.6 yr mean gap (was ~8.7); "10 @ 10 Weekend
+  Replay *" shows ~0.6 yr (was ~9.1). Era break rate drops from ~22% to 0%.
+- Show clustering features: 10@10 avg_best_year now ~1979 (was distorted by bleed tracks);
+  freshness_pct now 0.000; era_continuity_mean_gap now 0.60 (was ~8.7).
+
+---
+
 ## [1.0.0] - 2026-04-10
 
 Phase Two complete. All year accuracy work (Stages 1-5) and show clustering are now in.

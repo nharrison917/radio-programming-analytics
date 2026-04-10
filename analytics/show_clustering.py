@@ -34,6 +34,13 @@ from sklearn.manifold import MDS
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from analytics.era_continuity import (
+    load_10at10_tracks,
+    get_inband_tracks,
+    compute_segmented_metrics,
+    SEGMENT_SHOWS,
+)
+
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -44,6 +51,10 @@ TOP_TRACKS = 20
 ERA_CONTINUITY_THRESHOLD = 3
 ERA_BREAK_THRESHOLD = 10
 FRESHNESS_YEARS = 5
+
+
+def _display_label(show):
+    return f"{show} *" if show in SEGMENT_SHOWS else show
 
 
 # ---------------------------------------------------------------------------
@@ -324,6 +335,14 @@ def _dendrogram(dist_condensed, labels, title, out_path, k_hint=3):
         paper_bgcolor="white",
         height=500,
         margin=dict(l=40, r=40, t=60, b=120),
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.08,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(title="Ward linkage distance", showgrid=True, gridcolor="#eeeeee")
@@ -338,12 +357,14 @@ def _scalar_heatmap(features_scaled, features_raw, shows, out_path):
     feature_names = list(features_raw.columns)
     z = features_scaled.T.tolist()
 
+    # shows may contain display labels (e.g. "10 @ 10 *") -- use features_raw index for lookup
+    data_shows = list(features_raw.index)
     hover = []
     for fi, fname in enumerate(feature_names):
         row = []
-        for show in shows:
-            raw_val = features_raw.loc[show, fname]
-            row.append(f"{show}<br>{fname}: {raw_val:.3f}")
+        for label, orig in zip(shows, data_shows):
+            raw_val = features_raw.loc[orig, fname]
+            row.append(f"{label}<br>{fname}: {raw_val:.3f}")
         hover.append(row)
 
     fig = go.Figure(go.Heatmap(
@@ -363,6 +384,14 @@ def _scalar_heatmap(features_scaled, features_raw, shows, out_path):
         height=420,
         margin=dict(l=200, r=40, t=60, b=120),
         xaxis=dict(tickangle=-35),
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.08,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.write_html(str(out_path))
     print(f"Saved: {out_path}")
@@ -389,6 +418,14 @@ def _similarity_heatmap(sim_df, out_path):
         height=520,
         margin=dict(l=180, r=40, t=60, b=160),
         xaxis=dict(tickangle=-40),
+        annotations=[dict(
+            text="* = density-segmented pairs",
+            xref="paper", yref="paper",
+            x=0.0, y=-0.08,
+            showarrow=False,
+            font=dict(size=11, color="#666666"),
+            xanchor="left",
+        )],
     )
     fig.write_html(str(out_path))
     print(f"Saved: {out_path}")
@@ -405,11 +442,30 @@ def run_show_clustering():
     # -- Load plays once --
     df = _load_plays()
 
+    # Replace SEGMENT_SHOWS rows with in-band filtered rows
+    tracks_10 = load_10at10_tracks()
+    inband = get_inband_tracks(tracks_10)
+    df = df[~df["station_show"].isin(SEGMENT_SHOWS)].copy()
+    inband_sub = inband[
+        ["play_id", "play_ts", "station_show", "canonical_id", "norm_artist", "best_year"]
+    ].copy()
+    df = pd.concat([df, inband_sub], ignore_index=True)
+    df["play_ts"] = pd.to_datetime(df["play_ts"], errors="coerce")
+
     # -----------------------------------------------------------------------
     # PASS 1: Scalar features
     # -----------------------------------------------------------------------
     print("--- Pass 1: Scalar Features ---")
     scalar_df = compute_scalar_features(df)
+
+    # Override era_continuity_mean_gap for SEGMENT_SHOWS with segmented values
+    # (the inline SQL in compute_scalar_features queries the DB directly and
+    # cannot see our filtered df, so it returns the unfiltered gap)
+    seg_metrics, _ = compute_segmented_metrics(tracks_10)
+    for _, seg_row in seg_metrics.iterrows():
+        show = seg_row["station_show"]
+        if show in scalar_df.index:
+            scalar_df.loc[show, "era_continuity_mean_gap"] = seg_row["mean_abs_gap"]
     shows_scalar = list(scalar_df.index)
     print(f"  Shows: {len(shows_scalar)}")
     print(f"  Features: {list(scalar_df.columns)}")
@@ -433,14 +489,15 @@ def run_show_clustering():
     )
     dist_cond_scalar = squareform(dist_scalar, checks=False)
 
+    display_scalar = [_display_label(s) for s in shows_scalar]
     _dendrogram(
-        dist_cond_scalar, shows_scalar,
+        dist_cond_scalar, display_scalar,
         "Show Clustering -- Scalar Features (Ward linkage)",
         OUTPUT_DIR / "cluster_scalar_dendrogram.html",
         k_hint=3,
     )
     _scalar_heatmap(
-        scalar_scaled, scalar_df, shows_scalar,
+        scalar_scaled, scalar_df, display_scalar,
         OUTPUT_DIR / "cluster_scalar_heatmap.html",
     )
 
@@ -469,13 +526,15 @@ def run_show_clustering():
     np.fill_diagonal(dist_rep, 0.0)
     dist_cond_rep = squareform(dist_rep, checks=False)
 
+    display_rep = [_display_label(s) for s in shows_rep]
     _dendrogram(
-        dist_cond_rep, shows_rep,
+        dist_cond_rep, display_rep,
         f"Show Clustering -- Repertoire (top-{TOP_ARTISTS} artists + top-{TOP_TRACKS} tracks, last {REPERTOIRE_DAYS} days)",
         OUTPUT_DIR / "cluster_repertoire_dendrogram.html",
         k_hint=3,
     )
-    _similarity_heatmap(sim_df, OUTPUT_DIR / "cluster_repertoire_heatmap.html")
+    sim_labeled = sim_df.rename(index=_display_label, columns=_display_label)
+    _similarity_heatmap(sim_labeled, OUTPUT_DIR / "cluster_repertoire_heatmap.html")
 
     # -----------------------------------------------------------------------
     # PASS 3: Combined (scalars + MDS coords from repertoire)
@@ -520,8 +579,9 @@ def run_show_clustering():
     )
     dist_cond_combined = squareform(dist_combined, checks=False)
 
+    display_common = [_display_label(s) for s in common_shows]
     _dendrogram(
-        dist_cond_combined, common_shows,
+        dist_cond_combined, display_common,
         "Show Clustering -- Combined (scalar + repertoire MDS, unweighted)",
         OUTPUT_DIR / "cluster_combined_dendrogram.html",
         k_hint=3,
@@ -552,7 +612,7 @@ def run_show_clustering():
     dist_cond_eq = squareform(dist_eq, checks=False)
 
     _dendrogram(
-        dist_cond_eq, common_shows,
+        dist_cond_eq, display_common,
         "Show Clustering -- Combined Equal-Weight (scalar 6v : repertoire 6v)",
         OUTPUT_DIR / "cluster_combined_equalweight_dendrogram.html",
         k_hint=3,

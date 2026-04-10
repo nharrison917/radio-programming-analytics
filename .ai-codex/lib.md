@@ -33,6 +33,7 @@ era_continuity.py
   fn chart_buckets
   fn _modal_era
   fn _segment_block
+  fn get_inband_tracks
   fn load_10at10_tracks
   fn compute_segmented_metrics
   fn print_segmented_comparison
@@ -42,6 +43,7 @@ heatmap_avg_release_year.py
 heatmap_weekly_density.py
   fn run_heatmap_weekly_density
 show_clustering.py
+  fn _display_label
   fn _get_conn
   fn _load_plays
   fn compute_scalar_features
