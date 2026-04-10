@@ -27,6 +27,7 @@ analysis.py
 boxplot_release_year.py
   fn build_release_year_boxplot
 era_continuity.py
+  fn _show_params
   fn load_data
   fn chart_mean_gap
   fn chart_fingerprint
@@ -34,7 +35,7 @@ era_continuity.py
   fn _modal_era
   fn _segment_block
   fn get_inband_tracks
-  fn load_10at10_tracks
+  fn load_segmented_tracks
   fn compute_segmented_metrics
   fn print_segmented_comparison
   fn run_era_continuity

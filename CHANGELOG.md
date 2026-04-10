@@ -8,6 +8,47 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.2.0] - 2026-04-10
+
+Extended segmentation to "This Just In with Meg White" and refactored segmentation
+parameters to a per-show config dict.
+
+### Added
+- `analytics/era_continuity.py`: `SEGMENT_PARAMS` dict replacing the three global
+  constants (`SEGMENT_BAND`, `SEGMENT_MIN_INBAND`, `SEGMENT_CONSECUTIVE_OOB`). Maps
+  show name -> (band, min_inband, consec_oob); shows not listed fall back to "default".
+  Architecture supports per-show tuning when future shows need different parameters.
+- `analytics/era_continuity.py`: `_show_params(show)` helper that returns the param
+  tuple for a given show, defaulting to `SEGMENT_PARAMS["default"]`.
+
+### Changed
+- `analytics/era_continuity.py`: "This Just In with Meg White" added to `SEGMENT_SHOWS`.
+  Exploratory analysis (43 blocks) confirmed the default parameters work correctly:
+  modal era lands at ~2025, the throwback tail (1-2 tracks at :50-:59, pre-2020) is
+  cleanly excluded, and all 43 blocks produce valid segments.
+- `analytics/era_continuity.py`: `TRACKS_SQL_10AT10` renamed to `_TRACKS_SQL_TEMPLATE`;
+  `load_10at10_tracks()` renamed to `load_segmented_tracks()`. The WHERE clause is now
+  built dynamically from `SEGMENT_SHOWS` via a parameterized query -- adding a show to
+  `SEGMENT_SHOWS` is sufficient to include it in the load.
+- `analytics/era_continuity.py`: `_segment_block`, `get_inband_tracks`, and
+  `compute_segmented_metrics` now receive per-show params via `_show_params()` in
+  their groupby loops rather than reading global constants directly.
+- `analytics/era_continuity.py`: segmented metrics CSV renamed from
+  `era_continuity_10at10_segmented.csv` to `era_continuity_segmented.csv`.
+- `analytics/show_clustering.py`: import updated from `load_10at10_tracks` to
+  `load_segmented_tracks`; `tracks_10` variable renamed to `tracks_seg`.
+
+### Result
+- "This Just In with Meg White" clustering features now reflect in-band tracks only:
+  `avg_best_year` 2023.2 -> 2025.8, `freshness_pct` 0.901 -> 1.000,
+  `era_continuity_mean_gap` 3.40 -> 0.34.
+- Era continuity charts: show labelled "This Just In with Meg White *"; mean gap
+  0.34 yr (was 3.4 yr including throwback tail); era break rate 0.0% (was 11%).
+- "90's at Night" examined and explicitly not added: 96.4% of plays already in-era,
+  7/193 OOB tracks scattered (not systematic bleed). Documented in FUTURE_DIRECTIONS.md.
+
+---
+
 ## [1.1.0] - 2026-04-10
 
 Segmentation propagated to all charts and show clustering.

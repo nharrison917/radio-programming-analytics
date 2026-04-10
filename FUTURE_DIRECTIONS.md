@@ -44,90 +44,60 @@ since it changes the meaning of `station_show` in the dataset.
 
 ## Era Sensitivity Analysis for "90's at Night" and "This Just In with Meg White"
 
-**Context:**
-The density-based era segmentation built for 10@10 (see `analytics/era_continuity.py`)
-proved effective at isolating the themed segment from clock-hour bleed. The same approach
-may be applicable to the other two format shows, with parameter adjustments to match each
-show's structure.
+**"This Just In with Meg White" -- COMPLETE (2026-04-10)**
 
-**"90's at Night"**
-The show has a defined era constraint (the 1990s, roughly 1988-2002 in practice). A
-band-based filter -- flag plays where `best_year` falls outside a configurable window --
-could quantify how much non-90s content appears and whether it is systematic (e.g.
-consistently at the start of the 20:00 hour) or scattered. The segmentation logic would
-be simpler than 10@10: the era is fixed by format, not inferred per block from density.
+Added to `SEGMENT_SHOWS` in v1.2.0. The default segmentation parameters (BAND=3,
+MIN_INBAND=8, CONSEC_OOB=2) work without modification: modal era lands at ~2025,
+the throwback tail (1-2 tracks at :50-:59, pre-2020) is cleanly excluded in all
+43/43 observed blocks. Segmentation rationale: the throwback tail is intentional
+programming by Meg White, but for show-identity analytics (era position, freshness)
+it is noise -- the same consistency argument that applies to 10@10.
 
-**"This Just In with Meg White"**
-The show is a new-music show (21:00 hour), so the "era" is the present year +/- a short
-window. The throwback tracks (:50-:59 slot) are a known intentional segment. Whether
-to filter them depends on the analysis goal: for freshness metrics they are noise; for
-understanding the show's full programming arc they are signal. The segmentation approach
-could identify and separate the throwback tail from the main new-music block.
+Results: `avg_best_year` 2023.2 -> 2025.8, `freshness_pct` 0.901 -> 1.000,
+`era_continuity_mean_gap` 3.40 -> 0.34.
 
-**Implementation note:**
-The 10@10 segmentation lives in a dedicated section of `era_continuity.py`. The same
-file is the natural home for these extensions. The core `_modal_era` / `_segment_block`
-helpers are already factored for reuse.
+---
 
-**Architectural consideration (flagged 2026-04-10):**
-The current segmentation parameters (`SEGMENT_BAND`, `SEGMENT_MIN_INBAND`,
-`SEGMENT_CONSECUTIVE_OOB`) are global constants tuned for 10@10's structure: a tight
-single-year cluster ~10 tracks deep. "90's at Night" and "This Just In" have different
-structures -- a fixed decade window and a new-music + throwback-tail format respectively
--- and would likely need different band widths and minimum counts. Adding them to
-`SEGMENT_SHOWS` as-is would apply the wrong parameters. Before expanding the show list,
-the architecture should be extended to support a per-show parameter config (e.g., a dict
-keyed by show name) rather than global constants. That is a small but deliberate
-refactor, not just a one-line addition.
+**"90's at Night" -- examined 2026-04-10, decided NOT to segment**
 
-**Integration pattern (established 2026-04-10):**
-The full end-to-end wiring is now in place for 10@10. Adding a new segmented show
-requires the following touch points -- none are large, but all must be coordinated:
+Exploratory analysis of 193 enriched plays across 8 airing dates (16 hour-blocks)
+showed the show is already clean:
 
-1. **Parameter config** -- `SEGMENT_BAND`, `SEGMENT_MIN_INBAND`, and
-   `SEGMENT_CONSECUTIVE_OOB` are currently global constants tuned for 10@10. Before
-   adding a second show, convert these to a per-show dict (keyed by show name) so each
-   show can have its own band width and threshold. The dict lookup falls back to a
-   global default for shows not explicitly configured.
+- 96.4% of plays fall within 1988-2005 (the expected 90s range)
+- Only 7/193 tracks are OOB; they appear at scattered positions (4, 5, 8, 11) --
+  not front-loaded at the start of the 20:00 hour as originally hypothesised
+- The OOB tracks are post-2005 modern tracks, not a systematic bleed pattern
 
-2. **Data load** -- `load_10at10_tracks()` has a hardcoded `WHERE station_show IN
-   ('10 @ 10', '10 @ 10 Weekend Replay')` clause. Either generalize it to
-   `load_segmented_tracks(shows)` accepting a show list, or add a parallel load
-   function for the new show. The SQL must also return `play_id`, `canonical_id`, and
-   `norm_artist` (already present since the 2026-04-10 update) so `show_clustering`
-   can splice the filtered rows back in.
+Segmentation would produce nearly identical metrics and adds complexity without
+analytical value. **Not added to `SEGMENT_SHOWS`.**
 
-3. **SEGMENT_SHOWS** -- Add the new show name to the `SEGMENT_SHOWS` tuple in
-   `era_continuity.py`. This cascades automatically: `display_df` asterisk labeling
-   in `run_era_continuity`, and `_display_label` in `show_clustering` both key off
-   this tuple.
+If the dataset grows substantially and a pattern emerges, the approach would require
+a wider band (~7yr to cover the full decade) and possibly a fixed center (1995) rather
+than density-inferred modal era. See structural notes below.
 
-4. **show_clustering override** -- After `compute_scalar_features`, the inline SQL
-   for `era_continuity_mean_gap` queries the raw DB and must be overridden with the
-   segmented value. The override loop already handles all shows in `seg_metrics`, so
-   a new show's segmented result is picked up automatically -- as long as the new
-   show's tracks are passed to `compute_segmented_metrics`.
+---
 
-**"90's at Night" -- structural note:**
-`_modal_era` infers the target era from density within each block. For a fixed-era
-format show the target era is known in advance (roughly 1988-2002 in practice). Using
-`_modal_era` is fine as a cross-check but the band would need to be wide enough to
-cover the full decade, which is structurally different from 10@10's single-year cluster.
-Consider a fixed-center alternative: skip `_modal_era` entirely and use a configurable
-`center_year` + `band` pair, then apply the same consecutive-OOB termination rule.
-The out-of-era plays at the start of the 20:00 hour are likely clock-hour bleed from
-the preceding show -- a temporal filter (exclude the first N minutes of the hour) may
-be simpler and more principled than a density filter for this case.
+**Integration pattern for future segmented shows (established 2026-04-10, updated 2026-04-10):**
 
-**"This Just In with Meg White" -- structural note:**
-The throwback tail (:50-:59) is intentional programming, not bleed. Whether to segment
-depends entirely on the analysis goal. For freshness metrics it is noise; for
-understanding the full show arc it is signal. A density filter would work mechanically
-(new-music block is a tight cluster around the current year; throwback tracks are
-clear outliers) but the decision is whether the "segmented" version should be the
-default or an alternate view. This is a framing question, not an implementation one.
-Resolve the intent before writing code.
+All architectural prerequisites from v1.1.0 are now resolved. Adding a new show requires:
 
-**Status: Deferred.** Validate that the 10@10 segmentation is stable across a larger
-dataset before extending the pattern. Revisit once Phase Three enrichment is complete
-and the dataset has grown further.
+1. **Parameter config** -- Add a show-specific entry to `SEGMENT_PARAMS` in
+   `era_continuity.py` if the show needs different band/min/consec values. Falls back
+   to "default" automatically for shows not listed.
+
+2. **SEGMENT_SHOWS** -- Add the show name to the `SEGMENT_SHOWS` tuple. This cascades
+   automatically through `load_segmented_tracks()` (dynamic SQL), `display_df` asterisk
+   labeling in `run_era_continuity`, `_display_label` in `show_clustering`, and the
+   `era_continuity_mean_gap` override loop.
+
+3. **Verify block validity** -- Run the per-block trace to confirm the expected fraction
+   of blocks produce valid segments before committing.
+
+**"90's at Night" -- structural notes if revisited:**
+`_modal_era` infers era from density. For a fixed-era format show with a full-decade
+range, a fixed center (1995, band ~7) would be more principled than density inference.
+The consecutive-OOB termination rule still applies. A simple temporal filter (exclude
+first N minutes of the 20:00 hour) may also be worth testing given the hypothesis that
+any bleed is front-loaded.
+
+**Status: 90's at Night deferred; This Just In complete.**

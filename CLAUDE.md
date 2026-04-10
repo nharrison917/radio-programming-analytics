@@ -155,7 +155,6 @@ Configured in `config.py`:
 ## What's in scope right now (as of 2026-04-10)
 
 - Phase Three: MBID-based manual year overrides (see PHASE_THREE.md)
-- Possible segmentation extension to "90's at Night" and "This Just In" (see FUTURE_DIRECTIONS.md)
 - Dataset growth and continued enrichment runs
 
 ## Segmented shows
@@ -164,13 +163,23 @@ Some shows require density-based segmentation before their plays can be used in
 show-level analytics. The canonical list is `SEGMENT_SHOWS` in `era_continuity.py`:
 
 ```python
-SEGMENT_SHOWS = ("10 @ 10", "10 @ 10 Weekend Replay")
+SEGMENT_SHOWS = (
+    "10 @ 10",
+    "10 @ 10 Weekend Replay",
+    "This Just In with Meg White",
+)
 ```
 
-These shows air a themed block (e.g. "10 songs from 1978") surrounded by bleed tracks
-from the station's regular rotation. The bleed tracks are noise -- not part of the
-show's programming identity -- and distort every scalar feature (avg_best_year,
-freshness_pct, era_continuity_mean_gap, artist entropy, etc.).
+These shows have a known structure where a subset of each hour block is analytically
+distinct from the surrounding plays. For 10@10, bleed tracks from the station's
+regular rotation surround a single-era themed segment. For "This Just In", a new-music
+main block is followed by a 1-2 track intentional throwback tail at :50-:59. In both
+cases the surrounding/tail tracks are noise for show-identity analytics and distort
+every scalar feature (avg_best_year, freshness_pct, era_continuity_mean_gap, etc.).
+
+Per-show segmentation parameters live in `SEGMENT_PARAMS` in `era_continuity.py`.
+All three current shows use the default (band=3yr, min_inband=8, consec_oob=2).
+Add a show-specific entry to `SEGMENT_PARAMS` if a future show needs different tuning.
 
 **Rule:** Any show-level analysis that characterises programming style (era continuity
 charts, show clustering, etc.) must filter SEGMENT_SHOWS to in-band tracks only via

@@ -35,7 +35,7 @@ from sklearn.manifold import MDS
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analytics.era_continuity import (
-    load_10at10_tracks,
+    load_segmented_tracks,
     get_inband_tracks,
     compute_segmented_metrics,
     SEGMENT_SHOWS,
@@ -443,8 +443,8 @@ def run_show_clustering():
     df = _load_plays()
 
     # Replace SEGMENT_SHOWS rows with in-band filtered rows
-    tracks_10 = load_10at10_tracks()
-    inband = get_inband_tracks(tracks_10)
+    tracks_seg = load_segmented_tracks()
+    inband = get_inband_tracks(tracks_seg)
     df = df[~df["station_show"].isin(SEGMENT_SHOWS)].copy()
     inband_sub = inband[
         ["play_id", "play_ts", "station_show", "canonical_id", "norm_artist", "best_year"]
@@ -461,7 +461,7 @@ def run_show_clustering():
     # Override era_continuity_mean_gap for SEGMENT_SHOWS with segmented values
     # (the inline SQL in compute_scalar_features queries the DB directly and
     # cannot see our filtered df, so it returns the unfiltered gap)
-    seg_metrics, _ = compute_segmented_metrics(tracks_10)
+    seg_metrics, _ = compute_segmented_metrics(tracks_seg)
     for _, seg_row in seg_metrics.iterrows():
         show = seg_row["station_show"]
         if show in scalar_df.index:

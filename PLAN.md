@@ -1,6 +1,6 @@
 # PLAN.md -- 10@10 Segmentation: Propagation to Charts and Clustering
 
-## Status: COMPLETE (2026-04-10)
+## Status: COMPLETE (2026-04-10, extended 2026-04-10)
 
 ---
 
@@ -280,6 +280,33 @@ annotations=[dict(
     xanchor="left",
 )],
 ```
+
+---
+
+## Extension: "This Just In with Meg White" (2026-04-10)
+
+Added in v1.2.0 after exploratory analysis confirmed the show has a clean, predictable
+throwback tail (1-2 tracks at :50-:59, pre-2020) that the existing segmentation logic
+handles correctly with unchanged parameters (BAND=3, MIN_INBAND=8, CONSEC_OOB=2).
+
+Changes made:
+- `SEGMENT_SHOWS` extended to include "This Just In with Meg White".
+- Global constants (`SEGMENT_BAND`, etc.) replaced with `SEGMENT_PARAMS` dict keyed
+  by show name; `_show_params(show)` helper for lookup with "default" fallback.
+- `TRACKS_SQL_10AT10` renamed to `_TRACKS_SQL_TEMPLATE` (dynamic `{placeholders}`).
+- `load_10at10_tracks()` renamed to `load_segmented_tracks()` (parameterized SQL,
+  derives show list from `SEGMENT_SHOWS` at call time).
+- `_segment_block` and `get_inband_tracks` updated to accept/look up explicit params.
+- `era_continuity_10at10_segmented.csv` renamed to `era_continuity_segmented.csv`.
+
+Results for "This Just In with Meg White" (43/43 blocks valid):
+  avg_best_year: 2023.2 -> 2025.8 (inband tracks only)
+  freshness_pct: 0.901 -> 1.000
+  era_continuity_mean_gap: 3.40 -> 0.34
+
+"90's at Night" was assessed and explicitly NOT added: data is 96.4% in-era
+(7/193 OOB tracks), bleed is scattered (not front-loaded), no meaningful metric
+distortion. See FUTURE_DIRECTIONS.md.
 
 ---
 

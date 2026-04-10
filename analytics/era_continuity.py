@@ -29,12 +29,26 @@ MIN_PAIRS = 20             # minimum pairs for a show to appear in output
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# 10@10 segmentation parameters -- adjust here
+# Segmentation parameters
+# SEGMENT_PARAMS maps show name -> (band, min_inband, consecutive_oob).
+# Shows not listed fall back to "default".  All current shows share the same
+# parameters; add a show-specific entry here if future shows need different
+# tuning (e.g. a wider band for a decade-format show).
 # ---------------------------------------------------------------------------
-SEGMENT_BAND = 3           # +-yr window for in/out-of-band classification
-SEGMENT_MIN_INBAND = 8     # min in-band tracks to declare a valid segment
-SEGMENT_CONSECUTIVE_OOB = 2  # consecutive OOB tracks that signal segment end
-SEGMENT_SHOWS = ("10 @ 10", "10 @ 10 Weekend Replay")
+SEGMENT_SHOWS = (
+    "10 @ 10",
+    "10 @ 10 Weekend Replay",
+    "This Just In with Meg White",
+)
+SEGMENT_PARAMS = {
+    # (band_yr, min_inband_tracks, consecutive_oob_to_terminate)
+    "default": (3, 8, 2),
+}
+
+
+def _show_params(show):
+    """Return (band, min_inband, consec_oob) for the given show."""
+    return SEGMENT_PARAMS.get(show, SEGMENT_PARAMS["default"])
 # ---------------------------------------------------------------------------
 
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
@@ -288,7 +302,7 @@ def chart_buckets(df):
 # 10@10 density-based segmentation
 # ---------------------------------------------------------------------------
 
-TRACKS_SQL_10AT10 = """
+_TRACKS_SQL_TEMPLATE = """
 SELECT
     p.id                       AS play_id,
     p.play_ts,
@@ -317,7 +331,7 @@ SELECT
 FROM plays p
 JOIN plays_to_canonical ptc ON p.id = ptc.play_id
 JOIN canonical_tracks ct ON ptc.canonical_id = ct.canonical_id
-WHERE p.station_show IN ('10 @ 10', '10 @ 10 Weekend Replay')
+WHERE p.station_show IN ({placeholders})
   AND ct.spotify_status = 'SUCCESS'
   AND ct.mb_lookup_status IS NOT NULL
   AND ct.mb_ta_status IS NOT NULL
@@ -325,43 +339,43 @@ ORDER BY p.play_ts
 """
 
 
-def _modal_era(years):
-    """Find Y in years that maximises count of tracks with |year - Y| <= SEGMENT_BAND."""
+def _modal_era(years, band):
+    """Find Y in years that maximises count of tracks with |year - Y| <= band."""
     candidates = [y for y in years if y is not None]
     if not candidates:
         return None
     best_y, best_count = None, 0
     for candidate in candidates:
-        count = sum(1 for y in candidates if abs(y - candidate) <= SEGMENT_BAND)
+        count = sum(1 for y in candidates if abs(y - candidate) <= band)
         if count > best_count:
             best_count, best_y = count, candidate
     return best_y
 
 
-def _segment_block(years):
+def _segment_block(years, band, min_inband, consec_oob):
     """
     Density-based era segmentation for a single hour block.
 
     Returns the ordered list of in-band year values that form the confirmed
-    segment, or None if the block does not accumulate SEGMENT_MIN_INBAND
-    in-band tracks before two consecutive out-of-band tracks terminate it.
+    segment, or None if the block does not accumulate min_inband in-band
+    tracks before consec_oob consecutive out-of-band tracks terminate it.
     """
-    modal = _modal_era(years)
+    modal = _modal_era(years, band)
     if modal is None:
         return None
 
     in_band = []
     consecutive_oob = 0
     for y in years:
-        if y is not None and abs(y - modal) <= SEGMENT_BAND:
+        if y is not None and abs(y - modal) <= band:
             in_band.append(y)
             consecutive_oob = 0
         else:
             consecutive_oob += 1
-            if consecutive_oob >= SEGMENT_CONSECUTIVE_OOB:
+            if consecutive_oob >= consec_oob:
                 break
 
-    return in_band if len(in_band) >= SEGMENT_MIN_INBAND else None
+    return in_band if len(in_band) >= min_inband else None
 
 
 def get_inband_tracks(tracks_df):
@@ -371,38 +385,43 @@ def get_inband_tracks(tracks_df):
 
     tracks_df must have columns: play_ts, station_show, play_date, play_hour, best_year
     Any additional columns (play_id, canonical_id, norm_artist) are preserved.
+    Per-show parameters are looked up from SEGMENT_PARAMS via _show_params().
     """
     keep_indices = []
 
     for (show, date, hour), grp in tracks_df.groupby(
         ["station_show", "play_date", "play_hour"]
     ):
+        band, min_inband, consec_oob = _show_params(show)
         grp_sorted = grp.sort_values("play_ts")
         years = grp_sorted["best_year"].tolist()
-        modal = _modal_era(years)
+        modal = _modal_era(years, band)
         if modal is None:
             continue
 
         in_band_indices = []
         consecutive_oob = 0
         for idx, y in zip(grp_sorted.index, years):
-            if y is not None and abs(y - modal) <= SEGMENT_BAND:
+            if y is not None and abs(y - modal) <= band:
                 in_band_indices.append(idx)
                 consecutive_oob = 0
             else:
                 consecutive_oob += 1
-                if consecutive_oob >= SEGMENT_CONSECUTIVE_OOB:
+                if consecutive_oob >= consec_oob:
                     break
 
-        if len(in_band_indices) >= SEGMENT_MIN_INBAND:
+        if len(in_band_indices) >= min_inband:
             keep_indices.extend(in_band_indices)
 
     return tracks_df.loc[keep_indices].copy()
 
 
-def load_10at10_tracks():
+def load_segmented_tracks():
+    """Load all plays for SEGMENT_SHOWS with best_year and identity columns."""
+    placeholders = ",".join("?" * len(SEGMENT_SHOWS))
+    sql = _TRACKS_SQL_TEMPLATE.format(placeholders=placeholders)
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query(TRACKS_SQL_10AT10, conn)
+    df = pd.read_sql_query(sql, conn, params=list(SEGMENT_SHOWS))
     conn.close()
     df["play_ts"] = pd.to_datetime(df["play_ts"], errors="coerce")
     return df
@@ -421,8 +440,9 @@ def compute_segmented_metrics(tracks_df):
     for (show, date, hour), grp in tracks_df.groupby(
         ["station_show", "play_date", "play_hour"]
     ):
+        band, min_inband, consec_oob = _show_params(show)
         years = grp.sort_values("play_ts")["best_year"].tolist()
-        in_band = _segment_block(years)
+        in_band = _segment_block(years, band, min_inband, consec_oob)
 
         block_rows.append({
             "station_show": show,
@@ -468,12 +488,13 @@ def compute_segmented_metrics(tracks_df):
 
 def print_segmented_comparison(baseline_df, seg_df, block_stats):
     """Print side-by-side comparison of unfiltered vs segment-filtered metrics."""
+    default_band, default_min, default_consec = SEGMENT_PARAMS["default"]
     print()
-    print("=== 10@10 Segment-Filtered Analysis ===")
+    print("=== Segment-Filtered Analysis ===")
     print(
-        f"  Band: +/-{SEGMENT_BAND} yr  |  "
-        f"Min in-band: {SEGMENT_MIN_INBAND} tracks  |  "
-        f"Break rule: {SEGMENT_CONSECUTIVE_OOB} consecutive OOB"
+        f"  Default params -- Band: +/-{default_band} yr  |  "
+        f"Min in-band: {default_min} tracks  |  "
+        f"Break rule: {default_consec} consecutive OOB"
     )
     print()
 
@@ -563,9 +584,9 @@ def run_era_continuity():
     print(f"Saved: {csv_path}")
     print()
 
-    # --- 10@10 segmentation ---
-    tracks_10at10 = load_10at10_tracks()
-    seg_metrics, block_stats = compute_segmented_metrics(tracks_10at10)
+    # --- segmented shows ---
+    tracks_seg = load_segmented_tracks()
+    seg_metrics, block_stats = compute_segmented_metrics(tracks_seg)
 
     # Build display_df: replace SEGMENT_SHOWS rows with segmented values + asterisk labels
     display_df = df.copy()
@@ -585,13 +606,13 @@ def run_era_continuity():
     chart_fingerprint(display_df)
     chart_buckets(display_df)
 
-    # Baseline for just the 10@10 shows (subset of raw df -- no asterisks)
-    baseline_10at10 = df[df["station_show"].isin(SEGMENT_SHOWS)].reset_index(drop=True)
+    # Baseline for segmented shows (subset of raw df -- no asterisks)
+    baseline_seg = df[df["station_show"].isin(SEGMENT_SHOWS)].reset_index(drop=True)
 
     if not seg_metrics.empty:
-        print_segmented_comparison(baseline_10at10, seg_metrics, block_stats)
+        print_segmented_comparison(baseline_seg, seg_metrics, block_stats)
 
-        seg_csv = OUTPUT_DIR / "era_continuity_10at10_segmented.csv"
+        seg_csv = OUTPUT_DIR / "era_continuity_segmented.csv"
         seg_metrics.to_csv(seg_csv, index=False)
         print(f"Saved: {seg_csv}")
 
