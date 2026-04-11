@@ -41,6 +41,9 @@ def normalize_for_key(s: str) -> str:
     if not s:
         return s
 
+    # normalize typographic apostrophes to straight before removal
+    s = s.replace("\u2019", "'").replace("\u2018", "'")
+
     # remove apostrophes and periods completely
     s = s.replace("'", "")
     s = s.replace(".", "")

@@ -8,6 +8,27 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.2.2] - 2026-04-11
+
+### Fixed
+- `scraper/normalization_logic.py`: `normalize_for_key` now converts typographic
+  apostrophes (U+2019 RIGHT SINGLE QUOTATION MARK, U+2018 LEFT SINGLE QUOTATION MARK)
+  to straight apostrophes before removal. Previously, curly apostrophes served by the
+  source website survived into the catch-all `[^0-9a-z]+` regex and became spaces --
+  "I'm" normalized to "I m" instead of "Im", producing a different `norm_key_core` and
+  a duplicate canonical for the same track.
+- DB: merged two duplicate canonical pairs created by the above bug:
+  - Foy Vance "Hi, I'm The Preacher's Son" (canonical 2018 -> 576, 3 plays moved)
+  - Maggie Rogers "That's Where I Am" (canonical 1974 -> 884, 4 plays moved)
+- DB: corrected `norm_key_core` and `norm_title_core` in place for two further affected
+  canonicals with no twin: Ringo Starr "It's Been Too Long" (2187), The Clash "Rudie
+  Can't Fail" (2222).
+- DB: recalculated `play_count`, `first_play_ts`, and `last_play_ts` from
+  `plays_to_canonical` for all four surviving canonicals; corrected pre-existing staleness
+  (canonical 2187 showed `play_count=1` despite having 3 mapped plays).
+
+---
+
 ## [1.2.1] - 2026-04-10
 
 Documentation updates to reflect post-segmentation clustering values.
