@@ -26,11 +26,16 @@ def main():
 
     parser.add_argument(
         "mode",
-        choices=["scrape", "weekly", "analyze", "cluster", "backfill", "audit", "enrich-meta", "mb-enrich"],
+        choices=["scrape", "weekly", "analyze", "cluster", "backfill", "audit",
+                 "enrich-meta", "mb-enrich", "add-override", "set-meta"],
         help="Which job to run"
     )
     parser.add_argument("--start", type=str, help="ISO start datetime (YYYY-MM-DDTHH:MM)")
-    parser.add_argument("--end", type=str, help="ISO end datetime (YYYY-MM-DDTHH:MM)")
+    parser.add_argument("--end",   type=str, help="ISO end datetime (YYYY-MM-DDTHH:MM)")
+    parser.add_argument("--id",         type=int, help="canonical_id (add-override, set-meta)")
+    parser.add_argument("--spotify-id", type=str, help="Spotify track ID (add-override)")
+    parser.add_argument("--year",       type=str, help="Year override: YYYY or YYYY-MM-DD (set-meta)")
+    parser.add_argument("--duration",   type=str, help="Duration override: M:SS (set-meta)")
 
     args = parser.parse_args()
 
@@ -93,6 +98,20 @@ def main():
 
     elif args.mode == "audit":
         run_full_audit()
+
+    elif args.mode == "add-override":
+        if not args.id or not args.spotify_id:
+            print("add-override requires --id <canonical_id> and --spotify-id <spotify_id>")
+            return
+        from scraper.overrides import run_add_override
+        run_add_override(args.id, args.spotify_id)
+
+    elif args.mode == "set-meta":
+        if not args.id:
+            print("set-meta requires --id <canonical_id>")
+            return
+        from scraper.overrides import run_set_meta
+        run_set_meta(args.id, year_raw=args.year, duration_raw=args.duration)
 
 
 if __name__ == "__main__":

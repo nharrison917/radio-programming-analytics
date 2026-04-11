@@ -56,6 +56,18 @@ def migrate_db():
             )
             print(f"  migrate_db: added column canonical_tracks.{col_name}")
 
+    # -- Phase Three: manual duration and release date --
+    phase_three = [
+        ("manual_duration_ms",  "INTEGER"),
+        ("manual_release_date", "TEXT"),
+    ]
+    for col_name, col_type in phase_three:
+        if col_name not in existing:
+            cur.execute(
+                f"ALTER TABLE canonical_tracks ADD COLUMN {col_name} {col_type}"
+            )
+            print(f"  migrate_db: added column canonical_tracks.{col_name}")
+
     conn.commit()
     conn.close()
 

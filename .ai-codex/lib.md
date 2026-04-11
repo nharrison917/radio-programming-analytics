@@ -126,6 +126,14 @@ orchestrator.py
   fn get_last_play_ts
   fn run_scrape
   fn run_backfill
+overrides.py
+  fn _parse_year_input
+  fn _parse_duration_input
+  fn _format_duration
+  fn _fetch_canonical
+  fn _fetch_existing_override
+  fn run_add_override
+  fn run_set_meta
 parsing.py
   fn extract_hour_from_source
   fn parse_timestamp_guess

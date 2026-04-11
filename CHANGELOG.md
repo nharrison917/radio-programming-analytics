@@ -8,6 +8,41 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.3.0] - 2026-04-11
+
+Manual override CLI and Phase Three schema additions.
+
+### Added
+- `scraper/overrides.py`: two commands for hand-correcting individual records without
+  touching the enrichment pipeline:
+  - `run_add_override(canonical_id, spotify_id)` -- inserts into `manual_spotify_overrides`;
+    next `weekly` run enriches the track fully (year, duration, ISRC, artist ID). For tracks
+    on Spotify where our search failed due to normalization errors or title mismatches.
+  - `run_set_meta(canonical_id, year_raw, duration_raw)` -- writes `manual_year_override`,
+    `manual_release_date`, and/or `manual_duration_ms` directly to `canonical_tracks`. For
+    tracks not on Spotify. Accepts YYYY or YYYY-MM-DD for year; M:SS for duration.
+    Both commands display current track state and require `y` confirmation before writing.
+- `scraper/db.py`: Phase Three migration -- `manual_duration_ms INTEGER` and
+  `manual_release_date TEXT` added to `canonical_tracks`. Idempotent; triggers automatically
+  on first use of either override command via `migrate_db()`.
+  - `manual_duration_ms`: separate from `spotify_duration_ms` so a future Spotify match
+    cannot silently overwrite a hand-entered value.
+  - `manual_release_date`: audit trail for full date precision (YYYY-MM-DD if known); does
+    not affect `best_year` logic. Integer year extracted into existing `manual_year_override`.
+- `rs_main.py`: `add-override` and `set-meta` modes; `--id`, `--spotify-id`, `--year`,
+  `--duration` flags wired in.
+- `PHASE_THREE.md`: Manual Override CLI section documenting both commands, schema additions,
+  triage reference table (which command to use for which failure type).
+
+### Context
+Preceded by a full triage of the 43-record Spotify FAILED set and 89-record MB FAILED set.
+Failure taxonomy established: station-branded sessions, covers, normalization failures,
+version-suffix blocking MB search, recent releases not yet indexed, genuinely obscure tracks.
+The CLI addresses the normalization and obscure-track categories. The version-suffix MB
+search fix (Group B, ~26 records) is a separate upcoming code change in `mb_enrichment.py`.
+
+---
+
 ## [1.2.2] - 2026-04-11
 
 ### Fixed

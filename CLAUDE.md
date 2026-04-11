@@ -34,6 +34,8 @@ python rs_main.py analyze     # All analytics + visuals
 python rs_main.py audit       # Standalone audit
 python rs_main.py enrich-meta # Backfill spotify_isrc + spotify_album_type (~600/day limit)
 python rs_main.py mb-enrich   # MusicBrainz ISRC lookup for compilation/remaster tracks
+python rs_main.py add-override --id <canonical_id> --spotify-id <spotify_id>  # Spotify ID override for FAILED tracks
+python rs_main.py set-meta --id <canonical_id> [--year YYYY|YYYY-MM-DD] [--duration M:SS]  # Manual year/duration for non-Spotify tracks
 python rs_main.py backfill --start YYYY-MM-DDTHH:MM --end YYYY-MM-DDTHH:MM
 ```
 
@@ -47,7 +49,7 @@ ingest -> normalize -> seed canonicals -> map plays -> audit
 | Table | Purpose | Key columns |
 |---|---|---|
 | `plays` | Raw play records | `id`, `play_ts`, `station_show`, `is_music_show`, `title`, `artist`, `norm_key_core` |
-| `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_isrc_year`, `mb_lookup_status`, `mb_title_artist_year`, `mb_ta_status`, `manual_year_override` |
+| `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_isrc_year`, `mb_lookup_status`, `mb_title_artist_year`, `mb_ta_status`, `manual_year_override`, `manual_release_date`, `manual_duration_ms` |
 | `canonical_artists` | Per-artist Spotify metadata (career-level) | `spotify_artist_id`, `artist_name`, `earliest_release_year`, `enrichment_status` |
 | `plays_to_canonical` | Many-to-one mapping of plays to canonicals | `play_id`, `canonical_id`, `match_method` |
 | `manual_spotify_overrides` | Hand-supplied Spotify IDs for FAILED tracks | `canonical_id`, `spotify_id` |
@@ -65,6 +67,7 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 | `scraper/artist_enrichment.py` | Artist career metadata (earliest_release_year) via Spotify; runs as part of `weekly` |
 | `scraper/spotify_backfill.py` | One-time backfill of ISRC + album_type for existing records |
 | `scraper/mb_enrichment.py` | MusicBrainz ISRC lookup for compilation/remaster tracks |
+| `scraper/overrides.py` | Manual override CLI: `add-override` (Spotify ID) and `set-meta` (year/duration) |
 | `scraper/audit.py` | Post-pipeline data quality checks |
 | `analytics/era_continuity.py` | Consecutive-pair era metrics; `get_inband_tracks()` for density-based segmentation |
 | `analytics/show_clustering.py` | Four-pass hierarchical show clustering (scalar, repertoire, combined, equal-weight) |
