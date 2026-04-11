@@ -31,6 +31,11 @@ from urllib.parse import quote
 from rapidfuzz import fuzz
 
 from scraper.config import DB_PATH, SCRAPER_CONTACT
+from scraper.normalization_logic import (
+    extract_trailing_parentheticals,
+    classify_version_type,
+    extract_version_suffix,
+)
 
 MB_CALL_SLEEP = 1.1          # seconds between every API call (MB rate limit: 1/sec)
 CHUNK_SIZE = 50              # records per progress-reporting chunk
@@ -146,10 +151,23 @@ def _lookup_title_artist(artist, title):
     Always sleeps MB_CALL_SLEEP before returning (rate limit).
     Raises RuntimeError on unexpected HTTP status codes.
     """
+    # Strip trailing version qualifiers before querying MB.  Titles like
+    # "Ride Like The Wind (2019 Remaster)" fail because MB indexes the original
+    # title, not the remaster variant.  classify_version_type guards against
+    # stripping genuine title parens like "(Don't You) Forget About Me".
+    search_title, paren_note = extract_trailing_parentheticals(title)
+    if not paren_note or classify_version_type(paren_note) == "other":
+        # Parens are not a version note; try dash-style suffix.
+        stripped, dash_note = extract_version_suffix(title)
+        if dash_note:
+            search_title = stripped
+        else:
+            search_title = title  # nothing meaningful to strip
+
     # Wrap field values in Lucene quotes so special characters (-,&,(),etc.)
     # in artist/title strings are treated as literals, not query operators.
     safe_artist = quote(artist.replace('"', ''))
-    safe_title  = quote(title.replace('"', ''))
+    safe_title  = quote(search_title.replace('"', ''))
     url = (
         "https://musicbrainz.org/ws/2/recording"
         f'?query=artist:"{safe_artist}"+AND+recording:"{safe_title}"'
