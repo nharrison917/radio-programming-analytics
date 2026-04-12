@@ -26,7 +26,10 @@ import requests
 import time
 import logging
 from datetime import datetime
+from pathlib import Path
 from urllib.parse import quote
+
+import pandas as pd
 
 from rapidfuzz import fuzz
 
@@ -242,6 +245,40 @@ def _lookup_title_artist(artist, title):
 
 
 # ---------------------------------------------------------------------------
+# Output helpers
+# ---------------------------------------------------------------------------
+
+def _write_mb_failed_csv():
+    """Snapshot mb_failed.csv from current DB state.
+
+    Tracks where Spotify succeeded but both MB passes returned FAILED.
+    These are the candidates most likely to be playing under a wrong year
+    (compilations, remasters, etc.) and worth manual review.
+    """
+    out_path = Path("analytics/outputs/mb_failed.csv")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("""
+        SELECT
+            canonical_id, display_artist, display_title, play_count,
+            spotify_album_release_year, spotify_album_type, spotify_isrc,
+            mb_lookup_status, mb_isrc_year, mb_ta_status, mb_title_artist_year,
+            manual_year_override
+        FROM canonical_tracks
+        WHERE spotify_status = 'SUCCESS'
+          AND manual_year_override IS NULL
+          AND mb_lookup_status = 'FAILED'
+          AND mb_ta_status = 'FAILED'
+        ORDER BY display_artist, display_title
+    """, conn)
+    conn.close()
+
+    df.to_csv(out_path, index=False)
+    log.info(f"Wrote {len(df)} rows to {out_path}")
+
+
+# ---------------------------------------------------------------------------
 # Main enrichment run
 # ---------------------------------------------------------------------------
 
@@ -264,6 +301,7 @@ def run_mb_enrichment():
                spotify_album_release_year, spotify_isrc
         FROM canonical_tracks
         WHERE spotify_status = 'SUCCESS'
+          AND manual_year_override IS NULL
           AND (
               mb_lookup_status IS NULL
               OR (
@@ -325,6 +363,7 @@ def run_mb_enrichment():
             log.error(f"MB ISRC enrichment aborted: {e}")
             _integrity_check(cur)
             conn.close()
+            _write_mb_failed_csv()
             _print_pass_summary(
                 "ISRC", isrc_success, isrc_failed, isrc_no_isrc,
                 isrc_corrections, aborted=True
@@ -343,6 +382,7 @@ def run_mb_enrichment():
                spotify_album_release_year
         FROM canonical_tracks
         WHERE spotify_status = 'SUCCESS'
+          AND manual_year_override IS NULL
           AND (
               mb_ta_status IS NULL
               OR (
@@ -399,6 +439,7 @@ def run_mb_enrichment():
             log.error(f"MB title/artist enrichment aborted: {e}")
             _integrity_check(cur)
             conn.close()
+            _write_mb_failed_csv()
             _print_pass_summary(
                 "Title/artist", ta_success, ta_failed, 0, ta_corrections, aborted=True
             )
@@ -410,6 +451,7 @@ def run_mb_enrichment():
     _print_pass_summary("Title/artist", ta_success, ta_failed, 0, ta_corrections)
     _integrity_check(cur)
     conn.close()
+    _write_mb_failed_csv()
     return _build_result(
         isrc_success, isrc_failed, isrc_no_isrc, ta_success, ta_failed
     )

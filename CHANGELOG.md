@@ -8,6 +8,45 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.4.0] - 2026-04-11
+
+Failure CSV automation and `set-meta` closure semantics.
+
+### Added
+- `scraper/weekly.py`: `analytics/outputs/spotify_failed.csv` is now regenerated
+  automatically at the end of every Spotify enrichment run. Previously the file
+  was a static snapshot; it will now always reflect the current FAILED set after
+  each `python rs_main.py weekly`.
+- `scraper/mb_enrichment.py`: `analytics/outputs/mb_failed.csv` is now regenerated
+  automatically at all exit points of `run_mb_enrichment()` (normal completion and
+  both aborted paths). Written via `_write_mb_failed_csv()`, which opens its own
+  connection after the enrichment connection closes, so it works cleanly at every
+  exit point.
+
+### Changed
+- `scraper/overrides.py`: `set-meta --year` on a `FAILED` track now also sets
+  `spotify_status = 'NO_MATCH'`. Setting a year manually is an authoritative
+  closure signal -- the track is confirmed not resolvable via Spotify -- so
+  continuing to retry it is wasteful. The confirmation display shows the
+  `FAILED -> NO_MATCH` transition explicitly. Tracks with statuses other than
+  `FAILED` (SUCCESS, PENDING, NON_MUSIC, existing NO_MATCH) are unaffected.
+- `scraper/mb_enrichment.py`: both Pass 1 (ISRC) and Pass 2 (title/artist)
+  eligibility queries now exclude tracks where `manual_year_override IS NOT NULL`.
+  Since `manual_year_override` takes unconditional priority in `best_year`,
+  running MB lookups against a track that already has a hand-verified year is
+  pure waste. The MB status columns (`mb_lookup_status`, `mb_ta_status`) remain
+  accurate records of what MB actually returned and are not modified.
+- `scraper/mb_enrichment.py`: `_write_mb_failed_csv()` query likewise excludes
+  `manual_year_override IS NOT NULL` rows -- a track whose year is already
+  resolved manually is not actionable regardless of its MB lookup status.
+
+### Fixed
+- DB: 7 existing `FAILED` canonicals that had `manual_year_override` set (from
+  prior `set-meta` runs before the closure logic existed) were migrated to
+  `NO_MATCH` in a one-time update, consistent with the new semantics.
+
+---
+
 ## [1.3.0] - 2026-04-11
 
 Manual override CLI and Phase Three schema additions.

@@ -148,6 +148,24 @@ def run_weekly():
         index=False
     )
 
+    # Spotify FAILED snapshot (top-level outputs, refreshed each run)
+    df_spotify_failed = pd.read_sql_query("""
+        SELECT
+            canonical_id, display_artist, display_title, play_count, first_play_ts,
+            spotify_status, spotify_attempt_count,
+            mb_lookup_status, mb_isrc_year, mb_ta_status, mb_title_artist_year,
+            manual_year_override
+        FROM canonical_tracks
+        WHERE spotify_status = 'FAILED'
+        ORDER BY display_artist, display_title
+    """, conn)
+
+    df_spotify_failed.to_csv(
+        Path("analytics/outputs/spotify_failed.csv"),
+        index=False
+    )
+    logging.info(f"Wrote {len(df_spotify_failed)} rows to analytics/outputs/spotify_failed.csv")
+
     # Optional health snapshot
     success_count = pd.read_sql_query("""
         SELECT COUNT(*) AS count

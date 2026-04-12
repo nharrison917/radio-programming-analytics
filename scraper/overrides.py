@@ -162,9 +162,14 @@ def run_set_meta(canonical_id, year_raw=None, duration_raw=None):
 
     cid, artist, title, status, sp_year, yr_override, rel_date, dur_ms_current = row
 
+    # Setting a year on a FAILED track is an authoritative closure — mark it
+    # NO_MATCH so the enrichment pipeline stops retrying and the failures CSV
+    # excludes it.  Leave SUCCESS/PENDING/NON_MUSIC/NO_MATCH statuses alone.
+    will_close = year_int is not None and status == "FAILED"
+
     print()
     print(f"canonical {cid} | {artist} - {title}")
-    print(f"  spotify_status             : {status}")
+    print(f"  spotify_status             : {status}{' -> NO_MATCH' if will_close else ''}")
     print(f"  spotify_album_release_year : {sp_year if sp_year is not None else '(none)'}")
     print(f"  manual_year_override       : {yr_override if yr_override is not None else '(none)'}")
     print(f"  manual_release_date        : {rel_date if rel_date else '(none)'}")
@@ -176,6 +181,8 @@ def run_set_meta(canonical_id, year_raw=None, duration_raw=None):
         changes.append(f"year={year_int}, release_date={date_str!r}")
     if duration_ms is not None:
         changes.append(f"duration={_format_duration(duration_ms)} ({duration_ms} ms)")
+    if will_close:
+        changes.append("spotify_status=NO_MATCH (stops Spotify retries)")
     print(f"Setting: {', '.join(changes)}")
 
     answer = input("Proceed? [y/N]: ").strip().lower()
@@ -190,6 +197,13 @@ def run_set_meta(canonical_id, year_raw=None, duration_raw=None):
             SET manual_year_override = ?, manual_release_date = ?
             WHERE canonical_id = ?
         """, (year_int, date_str, cid))
+
+    if will_close:
+        cur.execute("""
+            UPDATE canonical_tracks
+            SET spotify_status = 'NO_MATCH'
+            WHERE canonical_id = ?
+        """, (cid,))
 
     if duration_ms is not None:
         cur.execute("""

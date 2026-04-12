@@ -100,6 +100,7 @@ mb_enrichment.py
   fn _lookup_isrc
   fn _clean_secondary_types
   fn _lookup_title_artist
+  fn _write_mb_failed_csv
   fn run_mb_enrichment
   fn _print_pass_summary
   fn _integrity_check
