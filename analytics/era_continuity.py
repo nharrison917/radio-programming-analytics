@@ -8,10 +8,10 @@ from the absolute difference in album release years.
 
 Outputs
 -------
-analytics/outputs/era_continuity.csv
-analytics/outputs/era_continuity_mean_gap.html
-analytics/outputs/era_continuity_fingerprint.html
-analytics/outputs/era_continuity_buckets.html
+analytics/outputs/era_continuity/era_continuity.csv
+analytics/outputs/era_continuity/era_continuity_mean_gap.html
+analytics/outputs/era_continuity/era_continuity_fingerprint.html
+analytics/outputs/era_continuity/era_continuity_buckets.html
 """
 
 import sqlite3
@@ -54,6 +54,8 @@ def _show_params(show):
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+ERA_DIR = OUTPUT_DIR / "era_continuity"
+ERA_DIR.mkdir(exist_ok=True)
 
 PAIRS_SQL = """
 WITH ranked AS (
@@ -171,7 +173,7 @@ def chart_mean_gap(df):
         )],
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
-    path = OUTPUT_DIR / "era_continuity_mean_gap.html"
+    path = ERA_DIR / "era_continuity_mean_gap.html"
     fig.write_html(str(path))
     print(f"Saved: {path}")
 
@@ -236,7 +238,7 @@ def chart_fingerprint(df):
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
     fig.update_yaxes(showgrid=True, gridcolor="#eeeeee")
-    path = OUTPUT_DIR / "era_continuity_fingerprint.html"
+    path = ERA_DIR / "era_continuity_fingerprint.html"
     fig.write_html(str(path))
     print(f"Saved: {path}")
 
@@ -293,7 +295,7 @@ def chart_buckets(df):
         )],
     )
     fig.update_xaxes(showgrid=True, gridcolor="#eeeeee")
-    path = OUTPUT_DIR / "era_continuity_buckets.html"
+    path = ERA_DIR / "era_continuity_buckets.html"
     fig.write_html(str(path))
     print(f"Saved: {path}")
 
@@ -579,7 +581,7 @@ def run_era_continuity():
     print()
 
     # Save CSV (unmodified -- no asterisks)
-    csv_path = OUTPUT_DIR / "era_continuity.csv"
+    csv_path = ERA_DIR / "era_continuity.csv"
     df.to_csv(csv_path, index=False, encoding="utf-8")
     print(f"Saved: {csv_path}")
     print()
@@ -612,7 +614,7 @@ def run_era_continuity():
     if not seg_metrics.empty:
         print_segmented_comparison(baseline_seg, seg_metrics, block_stats)
 
-        seg_csv = OUTPUT_DIR / "era_continuity_segmented.csv"
+        seg_csv = ERA_DIR / "era_continuity_segmented.csv"
         seg_metrics.to_csv(seg_csv, index=False)
         print(f"Saved: {seg_csv}")
 

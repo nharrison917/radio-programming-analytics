@@ -255,7 +255,7 @@ def _write_mb_failed_csv():
     These are the candidates most likely to be playing under a wrong year
     (compilations, remasters, etc.) and worth manual review.
     """
-    out_path = Path("analytics/outputs/mb_failed.csv")
+    out_path = Path("analytics/outputs/quality_checks/mb_failed.csv")
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)

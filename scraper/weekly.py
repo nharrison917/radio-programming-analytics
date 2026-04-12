@@ -96,7 +96,7 @@ def run_weekly():
     # ---------------------
     # Weekly Reports (AFTER enrichment)
     # ---------------------
-    weekly_output_dir = Path("analytics/outputs/weekly_reports")
+    weekly_output_dir = Path("analytics/outputs/quality_checks")
     weekly_output_dir.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)
@@ -161,10 +161,10 @@ def run_weekly():
     """, conn)
 
     df_spotify_failed.to_csv(
-        Path("analytics/outputs/spotify_failed.csv"),
+        Path("analytics/outputs/quality_checks/spotify_failed.csv"),
         index=False
     )
-    logging.info(f"Wrote {len(df_spotify_failed)} rows to analytics/outputs/spotify_failed.csv")
+    logging.info(f"Wrote {len(df_spotify_failed)} rows to analytics/outputs/quality_checks/spotify_failed.csv")
 
     # Optional health snapshot
     success_count = pd.read_sql_query("""

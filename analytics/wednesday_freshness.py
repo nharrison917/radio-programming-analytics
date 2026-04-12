@@ -42,7 +42,8 @@ BIASED_SHOWS = {
 
 WEEKDAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-OUTPUT_PATH = Path(__file__).resolve().parent / "outputs" / "wednesday_freshness.html"
+OUTPUT_PATH = Path(__file__).resolve().parent / "outputs" / "freshness" / "wednesday_freshness.html"
+OUTPUT_PATH.parent.mkdir(exist_ok=True)
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,46 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.6.0] - 2026-04-12
+
+Output directory reorganisation and documentation cleanup.
+
+### Changed
+- `analytics/outputs/` restructured into six subdirectories by concern. Each analytics
+  script now defines its own `*_DIR` constant (e.g. `ERA_DIR`, `ROTATION_DIR`) derived
+  from a shared `OUTPUT_DIR`:
+  - `quality_checks/` -- data quality CSVs; only subdirectory tracked in git
+  - `clustering/` -- hierarchical clustering HTML outputs and features CSV
+  - `era/` -- release year boxplot, heatmap, and avg year CSV
+  - `era_continuity/` -- consecutive-pair era metrics CSVs and charts
+  - `freshness/` -- wednesday freshness chart, freshness CSVs, density/freshness scatter
+  - `rotation/` -- rotation diversity CSVs (entropy, breadth, exclusivity) and density heatmap
+- `.gitignore`: replaced `analytics/outputs/analytics_*.csv` (flat file pattern) with
+  directory-level rules covering all five non-quality subdirectories. `quality_checks/`
+  is intentionally absent -- those CSVs document actionable data quality issues and their
+  diffs are meaningful as the dataset grows.
+- `scraper/weekly.py`: `weekly_reports/` output dir replaced by `quality_checks/`;
+  `enrichment_attempt_3_4.csv`, `enrichment_failures.csv`, and `spotify_failed.csv`
+  now written there.
+- `scraper/mb_enrichment.py`: `mb_failed.csv` now written to `quality_checks/`.
+- `analytics/segment_breakers.py`: `segment_breakers.csv` now written to `quality_checks/`.
+- `analytics/analysis.py`: `analytics_unique_artists.csv` no longer written to disk --
+  the DataFrame is still computed for terminal display but serves no standalone purpose
+  as a file.
+
+### Removed
+- `analytics/outputs/weekly_reports/` directory; contents migrated to `quality_checks/`.
+- `analytics/outputs/era_continuity_10at10_segmented.csv` -- orphan file with no
+  generating script (superseded by `era_continuity_segmented.csv` in v1.2.0).
+- `FUTURE_DIRECTIONS.md` -- actionable items absorbed into `PHASE_THREE.md`.
+- `PLAN.md` -- superseded by `PHASE_THREE.md` and `CLAUDE.md`.
+
+### Added
+- `MANUAL_OVERRIDE.md` -- standalone reference for `add-override` and `set-meta` CLI
+  commands, extracted from `PHASE_THREE.md` for easier day-to-day lookup.
+
+---
+
 ## [1.5.0] - 2026-04-12
 
 Segment Breakers report: mid-segment era outliers in themed and specialty shows.

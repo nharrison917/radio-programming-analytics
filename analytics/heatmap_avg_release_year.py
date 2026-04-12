@@ -9,6 +9,8 @@ DB_PATH = Path("radio_plays.db")
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+ERA_DIR = OUTPUT_DIR / "era"
+ERA_DIR.mkdir(exist_ok=True)
 
 
 def run_heatmap_avg_release_year():
@@ -114,7 +116,7 @@ def run_heatmap_avg_release_year():
     plt.title("Weekly Heatmap: Average Spotify Album Release Year")
     plt.tight_layout()
 
-    output_path = OUTPUT_DIR / "heatmap_avg_release_year.png"
+    output_path = ERA_DIR / "heatmap_avg_release_year.png"
     plt.savefig(output_path, dpi=300)
     plt.close()
 

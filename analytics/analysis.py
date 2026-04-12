@@ -18,6 +18,12 @@ DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+FRESHNESS_DIR = OUTPUT_DIR / "freshness"
+FRESHNESS_DIR.mkdir(exist_ok=True)
+ERA_DIR = OUTPUT_DIR / "era"
+ERA_DIR.mkdir(exist_ok=True)
+ROTATION_DIR = OUTPUT_DIR / "rotation"
+ROTATION_DIR.mkdir(exist_ok=True)
 
 LOG_DIR = Path(__file__).resolve().parents[1] / "logs"
 
@@ -351,13 +357,12 @@ def run_analysis():
     breadth = artist_breadth(df)
 
     # Export CSVs
-    ua.to_csv(OUTPUT_DIR / "analytics_unique_artists.csv", index=False)
-    uah.to_csv(OUTPUT_DIR / "analytics_unique_artists_per_hour.csv", index=False)
-    ent.to_csv(OUTPUT_DIR / "analytics_entropy.csv", index=False)
-    exc.to_csv(OUTPUT_DIR / "analytics_exclusive_artists.csv", index=False)
-    aay.to_csv(OUTPUT_DIR / "analytics_avg_album_year.csv", index=False)
-    fresh.to_csv(OUTPUT_DIR / "analytics_freshness.csv", index=False)
-    breadth.to_csv(OUTPUT_DIR / "analytics_artist_breadth.csv", index=False)
+    uah.to_csv(ROTATION_DIR / "analytics_unique_artists_per_hour.csv", index=False)
+    ent.to_csv(ROTATION_DIR / "analytics_entropy.csv", index=False)
+    exc.to_csv(ROTATION_DIR / "analytics_exclusive_artists.csv", index=False)
+    aay.to_csv(ERA_DIR / "analytics_avg_album_year.csv", index=False)
+    fresh.to_csv(FRESHNESS_DIR / "analytics_freshness.csv", index=False)
+    breadth.to_csv(ROTATION_DIR / "analytics_artist_breadth.csv", index=False)
 
     logging.info("CSVs exported to analytics/outputs/")
 
@@ -403,7 +408,7 @@ def run_analysis():
             df_week["rank"] = range(1, len(df_week) + 1)
             fresh_rows.append(df_week)
         pd.concat(fresh_rows, ignore_index=True).to_csv(
-            OUTPUT_DIR / "analytics_fresh_tracks.csv", index=False
+            FRESHNESS_DIR / "analytics_fresh_tracks.csv", index=False
         )
         logging.info("Fresh tracks CSV exported")
 

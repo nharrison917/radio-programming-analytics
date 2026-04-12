@@ -10,11 +10,11 @@ Three passes:
 
 Outputs
 -------
-analytics/outputs/cluster_scalar_dendrogram.html
-analytics/outputs/cluster_scalar_heatmap.html
-analytics/outputs/cluster_repertoire_dendrogram.html
-analytics/outputs/cluster_combined_dendrogram.html
-analytics/outputs/show_clustering_features.csv
+analytics/outputs/clustering/cluster_scalar_dendrogram.html
+analytics/outputs/clustering/cluster_scalar_heatmap.html
+analytics/outputs/clustering/cluster_repertoire_dendrogram.html
+analytics/outputs/clustering/cluster_combined_dendrogram.html
+analytics/outputs/clustering/show_clustering_features.csv
 """
 
 import sys
@@ -44,6 +44,8 @@ from analytics.era_continuity import (
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+CLUSTER_DIR = OUTPUT_DIR / "clustering"
+CLUSTER_DIR.mkdir(exist_ok=True)
 
 REPERTOIRE_DAYS = 60
 TOP_ARTISTS = 10
@@ -493,12 +495,12 @@ def run_show_clustering():
     _dendrogram(
         dist_cond_scalar, display_scalar,
         "Show Clustering -- Scalar Features (Ward linkage)",
-        OUTPUT_DIR / "cluster_scalar_dendrogram.html",
+        CLUSTER_DIR / "cluster_scalar_dendrogram.html",
         k_hint=3,
     )
     _scalar_heatmap(
         scalar_scaled, scalar_df, display_scalar,
-        OUTPUT_DIR / "cluster_scalar_heatmap.html",
+        CLUSTER_DIR / "cluster_scalar_heatmap.html",
     )
 
     # -----------------------------------------------------------------------
@@ -530,11 +532,11 @@ def run_show_clustering():
     _dendrogram(
         dist_cond_rep, display_rep,
         f"Show Clustering -- Repertoire (top-{TOP_ARTISTS} artists + top-{TOP_TRACKS} tracks, last {REPERTOIRE_DAYS} days)",
-        OUTPUT_DIR / "cluster_repertoire_dendrogram.html",
+        CLUSTER_DIR / "cluster_repertoire_dendrogram.html",
         k_hint=3,
     )
     sim_labeled = sim_df.rename(index=_display_label, columns=_display_label)
-    _similarity_heatmap(sim_labeled, OUTPUT_DIR / "cluster_repertoire_heatmap.html")
+    _similarity_heatmap(sim_labeled, CLUSTER_DIR / "cluster_repertoire_heatmap.html")
 
     # -----------------------------------------------------------------------
     # PASS 3: Combined (scalars + MDS coords from repertoire)
@@ -583,7 +585,7 @@ def run_show_clustering():
     _dendrogram(
         dist_cond_combined, display_common,
         "Show Clustering -- Combined (scalar + repertoire MDS, unweighted)",
-        OUTPUT_DIR / "cluster_combined_dendrogram.html",
+        CLUSTER_DIR / "cluster_combined_dendrogram.html",
         k_hint=3,
     )
 
@@ -614,16 +616,16 @@ def run_show_clustering():
     _dendrogram(
         dist_cond_eq, display_common,
         "Show Clustering -- Combined Equal-Weight (scalar 6v : repertoire 6v)",
-        OUTPUT_DIR / "cluster_combined_equalweight_dendrogram.html",
+        CLUSTER_DIR / "cluster_combined_equalweight_dendrogram.html",
         k_hint=3,
     )
 
     # -----------------------------------------------------------------------
     # Export features CSV
     # -----------------------------------------------------------------------
-    combined_raw.to_csv(OUTPUT_DIR / "show_clustering_features.csv", encoding="utf-8")
+    combined_raw.to_csv(CLUSTER_DIR / "show_clustering_features.csv", encoding="utf-8")
     print()
-    print(f"Saved: {OUTPUT_DIR / 'show_clustering_features.csv'}")
+    print(f"Saved: {CLUSTER_DIR / 'show_clustering_features.csv'}")
     print()
     print("=== Done ===")
 

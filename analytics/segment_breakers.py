@@ -13,7 +13,7 @@ only valid segments contribute OOB rows.
 
 Output
 ------
-analytics/outputs/segment_breakers.csv
+analytics/outputs/quality_checks/segment_breakers.csv
 """
 
 import sqlite3
@@ -25,6 +25,8 @@ from analytics.era_continuity import SEGMENT_SHOWS, _show_params, _modal_era
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+QUALITY_DIR = OUTPUT_DIR / "quality_checks"
+QUALITY_DIR.mkdir(exist_ok=True)
 
 NINETIES_SHOW = "90's at Night"
 YEAR_LOW  = 1989   # inclusive lower bound (90s +/- 1)
@@ -247,7 +249,7 @@ def run_segment_breakers():
                 "station_show", "most_recent_play_ts", "spotify_album_type", "breach_reason"]
     final = final[out_cols]
 
-    out_path = OUTPUT_DIR / "segment_breakers.csv"
+    out_path = QUALITY_DIR / "segment_breakers.csv"
     final.to_csv(out_path, index=False, encoding="utf-8")
 
     print(f"\n  Total unique canonical breakers: {len(final)}")

@@ -9,7 +9,7 @@ pipeline. Updated as new analyses are built.
 
 **Script:** `analytics/show_clustering.py`
 **Run:** `python rs_main.py cluster`
-**Outputs:** `analytics/outputs/cluster_*.html`, `analytics/outputs/show_clustering_features.csv`
+**Outputs:** `analytics/outputs/clustering/cluster_*.html`, `analytics/outputs/clustering/show_clustering_features.csv`
 
 ### Question
 
@@ -118,3 +118,44 @@ values because they operate within the same format constraints. The repertoire d
 is where individual curation choices live -- but even there, the main rotation shows
 are drawing from a shared pool with limited individual differentiation. The clearest
 differentiations in the dataset are at the format boundary, not the host boundary.
+
+------------------------------------------------------------------------
+
+## Notes
+
+### Show-to-hour attribution
+
+The scraper attributes plays to shows by hour, matching the station website's structure.
+Several shows have a structural mismatch between the scraped hour boundary and the actual
+show boundary.
+
+**Known cases:**
+
+- **"10 @ 10" / "10 @ 10 Weekend Replay"** -- bleed tracks from regular rotation surround
+  the single-era themed segment. Handled via density-based segmentation.
+- **"This Just In with Meg White"** -- intentional 1-2 track throwback tail at :50-:59.
+  Handled via segmentation.
+- **"90's at Night"** -- a handful of non-90s plays at the very start of the 20:00 hour,
+  likely bleed from whatever aired before. Most apparent anomalies are remaster/compilation
+  year artifacts resolved by MB enrichment.
+
+**Open question:** correct data to recover programmatic intent (reclassify bleed tracks to
+the adjacent show), or treat data as an honest record of what the website reported at scrape
+time? Both positions are defensible; "as recorded" is reproducible and makes no assumptions
+about intent. No decision made.
+
+### "90's at Night" -- segmentation deferred
+
+Examined 2026-04-10. 193 enriched plays across 8 airing dates (16 hour-blocks):
+
+- 96.4% of plays fall within 1988-2005 (the expected 90s range)
+- 7/193 OOB tracks appear at scattered positions within the hour -- not front-loaded
+  as originally hypothesised
+- OOB tracks are post-2005 modern tracks, not a systematic bleed pattern
+
+Segmentation would produce nearly identical metrics. Not added to `SEGMENT_SHOWS`.
+
+**If revisited:** `_modal_era` infers era from density, which is not ideal for a
+fixed-format decade show. A fixed center (1995, band ~7yr) would be more principled
+than density inference. A temporal filter (exclude first N minutes of the 20:00 hour)
+is also worth testing if the front-loading hypothesis strengthens with more data.

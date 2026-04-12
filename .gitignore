@@ -15,8 +15,13 @@ debug.py
 *.db-shm
 *.db-wal
 
-analytics/outputs/analytics_*.csv
-analytics/outputs/weekly_reports/
+# Generated analytics outputs -- regenerate with: python rs_main.py analyze
+# quality_checks/ is intentionally absent -- those CSVs are tracked as data quality snapshots
+analytics/outputs/clustering/
+analytics/outputs/era/
+analytics/outputs/era_continuity/
+analytics/outputs/freshness/
+analytics/outputs/rotation/
 
 run_scraper.bat
 run_weekly.bat

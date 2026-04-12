@@ -72,7 +72,7 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 | `analytics/era_continuity.py` | Consecutive-pair era metrics; `get_inband_tracks()` for density-based segmentation |
 | `analytics/show_clustering.py` | Four-pass hierarchical show clustering (scalar, repertoire, combined, equal-weight) |
 | `radio_plays.db` | SQLite database (not in repo -- generated at runtime) |
-| `analytics/outputs/enrichment_failures.csv` | FAILED-status canonicals only (actionable) |
+| `analytics/outputs/quality_checks/enrichment_failures.csv` | FAILED-status canonicals only (actionable) |
 | `.env` | Spotify credentials + scraper contact (not in repo) |
 
 ## Enrichment status model
@@ -145,10 +145,20 @@ wasted work. Both statuses are tracked independently: `mb_lookup_status` for ISR
 
 ## Outputs
 
-- `analytics/outputs/` -- CSVs and HTML visualizations
-- `analytics/outputs/weekly_reports/enrichment_attempt_3_4.csv` -- tracks matched only on
-  fallback attempts 3 or 4; worth spot-checking as borderline matches
-- HTML outputs use Plotly (interactive); static scatter plot uses matplotlib
+`analytics/outputs/` is organised into subdirectories by concern. Each analytics script
+defines its own `*_DIR` constant derived from `OUTPUT_DIR`. Only `quality_checks/` is
+tracked in git -- all other subdirectories are gitignored.
+
+| Subdirectory | Contents | Git |
+|---|---|---|
+| `quality_checks/` | enrichment_failures.csv, enrichment_attempt_3_4.csv, spotify_failed.csv, mb_failed.csv, segment_breakers.csv | Tracked |
+| `clustering/` | cluster_*.html, show_clustering_features.csv | Ignored |
+| `era/` | boxplot_release_year.html, heatmap_avg_release_year.png, analytics_avg_album_year.csv | Ignored |
+| `era_continuity/` | era_continuity*.csv, era_continuity*.html | Ignored |
+| `freshness/` | wednesday_freshness.html, density_vs_freshness.png, analytics_freshness.csv, analytics_fresh_tracks.csv | Ignored |
+| `rotation/` | heatmap_weekly_density.png, analytics_entropy.csv, analytics_exclusive_artists.csv, analytics_artist_breadth.csv, analytics_unique_artists_per_hour.csv | Ignored |
+
+HTML outputs use Plotly (interactive); static charts use matplotlib.
 - `logs/` -- rotating logs: `scrape_*.log`, `weekly_*.log`, `audit_*.log`, `analysis_*.log`
 - `backups/` -- timestamped DB snapshots (not in repo)
 
@@ -186,7 +196,11 @@ every scalar feature (avg_best_year, freshness_pct, era_continuity_mean_gap, etc
 
 Per-show segmentation parameters live in `SEGMENT_PARAMS` in `era_continuity.py`.
 All three current shows use the default (band=3yr, min_inband=8, consec_oob=2).
-Add a show-specific entry to `SEGMENT_PARAMS` if a future show needs different tuning.
+
+**To add a new segmented show:**
+1. Add the show name to `SEGMENT_SHOWS` -- cascades to SQL, chart labels, and the `era_continuity_mean_gap` override in `show_clustering` automatically.
+2. Add a show-specific entry to `SEGMENT_PARAMS` only if the default parameters won't work.
+3. Run a per-block trace to verify expected block validity fraction before committing.
 
 **Rule:** Any show-level analysis that characterises programming style (era continuity
 charts, show clustering, etc.) must filter SEGMENT_SHOWS to in-band tracks only via

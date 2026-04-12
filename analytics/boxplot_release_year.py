@@ -13,6 +13,8 @@ from analytics.era_continuity import SEGMENT_SHOWS, get_inband_tracks
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+ERA_DIR = OUTPUT_DIR / "era"
+ERA_DIR.mkdir(exist_ok=True)
 
 
 def build_release_year_boxplot():
@@ -75,7 +77,7 @@ def build_release_year_boxplot():
         )],
     )
 
-    output_path = OUTPUT_DIR / "boxplot_release_year.html"
+    output_path = ERA_DIR / "boxplot_release_year.html"
     fig.write_html(str(output_path))
     print(f"Saved to: {output_path}")
 

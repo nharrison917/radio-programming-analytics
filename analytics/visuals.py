@@ -7,6 +7,8 @@ from pathlib import Path
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+FRESHNESS_DIR = OUTPUT_DIR / "freshness"
+FRESHNESS_DIR.mkdir(exist_ok=True)
 
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 
@@ -163,7 +165,7 @@ def build_scatter_plot():
     plt.tight_layout(rect=[0, 0.04, 1, 1])
     plt.figtext(0.01, 0.01, "* = density-segmented tracks", ha="left", fontsize=9, color="#666666")
 
-    output_path = OUTPUT_DIR / "density_vs_freshness.png"
+    output_path = FRESHNESS_DIR / "density_vs_freshness.png"
     plt.savefig(output_path, dpi=300)
     plt.close()
     print(f"Saved plot to: {output_path}")

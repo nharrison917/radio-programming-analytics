@@ -9,6 +9,8 @@ DB_PATH = Path("radio_plays.db")
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
+ROTATION_DIR = OUTPUT_DIR / "rotation"
+ROTATION_DIR.mkdir(exist_ok=True)
 
 
 def run_heatmap_weekly_density():
@@ -95,7 +97,7 @@ def run_heatmap_weekly_density():
     plt.ylabel("Day of Week")
     plt.title("Weekly Music Density Heatmap (Total Spotify Minutes)")
 
-    output_path = OUTPUT_DIR / "heatmap_weekly_density.png"
+    output_path = ROTATION_DIR / "heatmap_weekly_density.png"
 
     plt.savefig(output_path, dpi=300)
     plt.close()
