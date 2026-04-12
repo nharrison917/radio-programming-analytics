@@ -69,6 +69,7 @@ def main():
         from analytics.heatmap_weekly_density import run_heatmap_weekly_density
         from analytics.heatmap_avg_release_year import run_heatmap_avg_release_year
         from analytics.wednesday_freshness import run_wednesday_freshness
+        from analytics.segment_breakers import run_segment_breakers
 
         run_analysis()
         run_era_continuity()
@@ -76,6 +77,7 @@ def main():
         run_heatmap_weekly_density()
         run_heatmap_avg_release_year()
         run_wednesday_freshness()
+        run_segment_breakers()
 
     elif args.mode == "cluster":
         from analytics.show_clustering import run_show_clustering

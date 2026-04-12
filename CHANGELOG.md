@@ -8,6 +8,34 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.5.0] - 2026-04-12
+
+Segment Breakers report: mid-segment era outliers in themed and specialty shows.
+
+### Added
+- `analytics/segment_breakers.py`: new `run_segment_breakers()` report identifying
+  canonical tracks that appear out of place in era-specific shows.
+  - **"90's at Night"**: flags any canonical whose `best_year` falls outside
+    1989-2000 (±1 year tolerance) or is null. One row per canonical; most recent
+    play used as representative.
+  - **SEGMENT_SHOWS** (10 @ 10, 10 @ 10 Weekend Replay, This Just In with Meg White):
+    identifies mid-segment OOB tracks from valid density-segmented blocks. A track
+    qualifies only if it falls chronologically between the first and last in-band
+    track in its block -- tail tracks (intentional throwbacks, post-segment bleed)
+    and pre-segment bleed are excluded. Blocks that fail to reach `min_inband` are
+    skipped entirely.
+  - Canonicals flagged in multiple shows have their `station_show` and `breach_reason`
+    fields aggregated as semicolon-delimited unique values.
+  - Output: `analytics/outputs/segment_breakers.csv` -- one row per canonical, sorted
+    by show then `best_year` ascending (nulls first) then `most_recent_play_ts` descending.
+  - Columns: `canonical_id`, `display_artist`, `display_title`, `best_year`,
+    `station_show`, `most_recent_play_ts`, `spotify_album_type`, `breach_reason`.
+  - No `spotify_status` filter: null-year tracks (enrichment failures) are intentionally
+    surfaced alongside resolved tracks.
+- `rs_main.py`: `run_segment_breakers()` wired into the `analyze` pipeline.
+
+---
+
 ## [1.4.1] - 2026-04-11
 
 Propagate density segmentation to boxplot and scatter plot.

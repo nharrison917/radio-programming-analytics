@@ -1,4 +1,4 @@
-# Library Exports (generated 2026-04-11)
+# Library Exports (generated 2026-04-12)
 # fn=function, class=class
 
 ## (root)/
@@ -43,6 +43,9 @@ heatmap_avg_release_year.py
   fn run_heatmap_avg_release_year
 heatmap_weekly_density.py
   fn run_heatmap_weekly_density
+segment_breakers.py
+  fn _get_oob_indices
+  fn run_segment_breakers
 show_clustering.py
   fn _display_label
   fn _get_conn
