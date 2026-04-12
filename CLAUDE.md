@@ -80,7 +80,9 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 - `PENDING` -- not yet attempted
 - `SUCCESS` -- matched on Spotify
 - `FAILED` -- attempted, no match found (appears in failures CSV)
-- `NO_MATCH` -- manually confirmed unresolvable; excluded from API calls and warnings
+- `NO_MATCH` -- closed; excluded from API calls and warnings. Set manually, or
+  automatically by `set-meta --year` when applied to a FAILED track (year is
+  authoritative, no Spotify retry needed)
 - `NON_MUSIC` -- non-music content; excluded from enrichment and failures report
 
 Only `FAILED` records are actionable. `NO_MATCH` and `NON_MUSIC` are closed.
@@ -135,9 +137,11 @@ Each MB source is only accepted when strictly earlier than Spotify's year. When 
 are available and both are earlier, the minimum is taken. This handles the remaster-ISRC
 problem (e.g. Bowie - Fame: Spotify=1975, MB ISRC=2016 -- rule keeps 1975).
 
-`mb-enrich` now runs two passes: ISRC lookup (all SUCCESS tracks) then title/artist
-search (all SUCCESS tracks). Both statuses are tracked independently: `mb_lookup_status`
-for ISRC, `mb_ta_status` for title/artist.
+`mb-enrich` now runs two passes: ISRC lookup then title/artist search, both against
+`spotify_status = 'SUCCESS'` tracks where `manual_year_override IS NULL`. Tracks with
+a manual year override are skipped — that year is authoritative and further lookups are
+wasted work. Both statuses are tracked independently: `mb_lookup_status` for ISRC,
+`mb_ta_status` for title/artist.
 
 ## Outputs
 

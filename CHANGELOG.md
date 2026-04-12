@@ -8,6 +8,24 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.4.1] - 2026-04-11
+
+Propagate density segmentation to boxplot and scatter plot.
+
+### Fixed
+- `analytics/boxplot_release_year.py`: SEGMENT_SHOWS (10 @ 10, 10 @ 10 Weekend Replay,
+  This Just In with Meg White) were not filtered to in-band tracks before computing the
+  release year distribution. Bleed tracks from regular rotation inflated the apparent era
+  for 10@10 shows; the throwback tail diluted freshness for This Just In. Now calls
+  `get_inband_tracks()` from `era_continuity.py` before building the boxplot. Segmented
+  shows are labelled `<name> *` with a `"* = density-segmented tracks"` annotation.
+- `analytics/visuals.py`: same omission in `build_scatter_plot()` -- `unique_artists_per_hour`
+  and `freshness_pct` for SEGMENT_SHOWS were computed from unfiltered data. Now applies
+  `get_inband_tracks()` before the compute functions, with matching `<name> *` labelling
+  and a `figtext` footnote.
+
+---
+
 ## [1.4.0] - 2026-04-11
 
 Failure CSV automation and `set-meta` closure semantics.

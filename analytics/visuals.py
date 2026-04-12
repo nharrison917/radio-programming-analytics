@@ -8,8 +8,9 @@ from pathlib import Path
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-
 DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
+
+from analytics.era_continuity import SEGMENT_SHOWS, get_inband_tracks
 
 
 def get_connection():
@@ -107,6 +108,16 @@ def compute_freshness(df, recent_year_threshold=5):
 def build_scatter_plot():
     df = load_dataset()
 
+    # Add columns required by get_inband_tracks
+    df["play_date"] = df["play_ts"].dt.strftime("%Y-%m-%d")
+    df["play_hour"] = df["play_ts"].dt.strftime("%H")
+
+    # Apply density-based segmentation for SEGMENT_SHOWS; leave others untouched
+    seg_mask = df["station_show"].isin(SEGMENT_SHOWS)
+    df_seg = get_inband_tracks(df[seg_mask].copy())
+    df_seg["station_show"] = df_seg["station_show"] + " *"
+    df = pd.concat([df[~seg_mask], df_seg], ignore_index=True)
+
     diversity = compute_unique_artists_per_hour(df)
     freshness = compute_freshness(df)
 
@@ -149,7 +160,8 @@ def build_scatter_plot():
         plt.FuncFormatter(lambda y, _: f"{y:.0%}")
     )
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0.04, 1, 1])
+    plt.figtext(0.01, 0.01, "* = density-segmented tracks", ha="left", fontsize=9, color="#666666")
 
     output_path = OUTPUT_DIR / "density_vs_freshness.png"
     plt.savefig(output_path, dpi=300)
