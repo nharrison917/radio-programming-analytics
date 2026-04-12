@@ -1,0 +1,28 @@
+canonical_id,norm_artist,display_title,spotify_attempt_count,spotify_status,spotify_last_attempted_at,last_play_ts
+561,foo fighters,Baker Street,16,FAILED,2026-04-10 11:46:26,2026-03-15T05:53:00
+798,lamont landers,Use Me,16,FAILED,2026-04-10 11:46:30,2026-02-10T17:28:00
+875,lumineers,The Night They Drove Old Dixie Down,16,FAILED,2026-04-10 11:46:34,2026-03-14T06:02:00
+876,lumineers,The Shape I'm In,16,FAILED,2026-04-10 11:46:38,2026-04-03T14:24:00
+877,lumineers,The Weight,16,FAILED,2026-04-10 11:46:42,2026-04-10T05:18:00
+878,lumineers,Up On Cripple Creek,16,FAILED,2026-04-10 11:46:46,2026-03-17T19:08:00
+1237,revivalists,Wildflowers,16,FAILED,2026-04-10 11:46:57,2026-02-20T08:24:00
+1749,lumineers,Life Is A Carnival,16,FAILED,2026-04-10 11:47:15,2026-02-26T18:08:00
+1862,grace potter w don was and matt burr,I Shall Be Released,16,FAILED,2026-04-10 11:47:23,2026-04-10T17:07:00
+1886,benjamin gibbard,Northern Lights,16,FAILED,2026-04-10 11:47:27,2026-03-01T09:41:00
+1920,benjamin gibbard,Cath (Acoustic),15,FAILED,2026-04-10 11:47:35,2026-03-02T09:33:00
+1956,lamont landers,Nothing From Nothing,15,FAILED,2026-04-10 11:47:39,2026-03-03T11:31:00
+1961,warren haynes,The Shape I'm In,15,FAILED,2026-04-10 11:47:42,2026-03-03T09:05:00
+2130,george harrison,Cloud 9,12,FAILED,2026-04-10 11:48:05,2026-03-15T16:12:00
+2159,lumineers,Stage Fright,12,FAILED,2026-04-10 11:48:09,2026-04-09T07:01:00
+2282,stealers wheel,Dust In The Wind,10,FAILED,2026-04-10 11:48:12,2026-04-06T13:05:00
+2303,lumineers,Tura Lura Lural,10,FAILED,2026-04-10 11:48:21,2026-03-17T06:22:00
+2323,johnny blue skies,Situation,10,FAILED,2026-04-10 11:48:24,2026-04-11T17:44:00
+2511,lamont landers,(Sittin' On) The Dock Of The Bay,8,FAILED,2026-04-10 11:48:50,2026-03-25T06:30:00
+2541,lumineers,Atlantic City,7,FAILED,2026-04-10 11:48:54,2026-03-26T18:33:00
+2555,crosby stills nash and young,Hawaiian Sunrise,7,FAILED,2026-04-10 11:48:58,2026-03-27T18:43:00
+2628,allison ponthier,Hollywood Forever Cemetery (Acoustic),5,FAILED,2026-04-10 11:49:06,2026-03-31T16:34:00
+2643,johnette napolitano,The Scientist,5,FAILED,2026-04-10 11:49:10,2026-04-01T08:02:00
+2655,wallflowers,Heroes,5,FAILED,2026-04-10 11:49:14,2026-04-01T07:05:00
+2658,aish,Passover Funk,4,FAILED,2026-04-10 11:49:18,2026-04-01T18:24:00
+2691,matt nathanson,Little Red Corvette (Acoustic),4,FAILED,2026-04-10 11:49:22,2026-04-02T09:29:00
+2779,csny,Woodstock,1,FAILED,2026-04-10 11:50:02,2026-04-08T22:16:00

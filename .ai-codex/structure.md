@@ -2,7 +2,12 @@
 
 analytics/
   outputs/
-    weekly_reports/
+    clustering/
+    era/
+    era_continuity/
+    freshness/
+    quality_checks/
+    rotation/
 backups/
 logs/
 scraper/
