@@ -42,7 +42,10 @@ def normalize_for_key(s: str) -> str:
         return s
 
     # normalize typographic apostrophes to straight before removal
+    # U+2019/U+2018: curly quotes (correct Unicode)
+    # U+0092/U+0091: C1 control chars -- mis-decoded Windows-1252 smart quotes
     s = s.replace("\u2019", "'").replace("\u2018", "'")
+    s = s.replace("\u0092", "'").replace("\u0091", "'")
 
     # remove apostrophes and periods completely
     s = s.replace("'", "")

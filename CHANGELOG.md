@@ -43,6 +43,34 @@ search fix (Group B, ~26 records) is a separate upcoming code change in `mb_enri
 
 ---
 
+## [1.2.3] - 2026-04-11
+
+### Fixed
+- `scraper/normalization_logic.py`: `normalize_for_key` now also converts U+0092
+  (BREAK PERMITTED HERE) and U+0091 C1 control characters to straight apostrophes
+  before removal. These are mis-decoded Windows-1252 smart quotes: the source website
+  sent byte `0x92` (RIGHT SINGLE QUOTATION MARK in CP1252), which the scraper decoded
+  as UTF-8 byte sequence `C2 92` (= U+0092). The 1.2.2 U+2019 fix did not catch this
+  variant; one track ("Don't Dream It's Over" by The Head And The Heart) was affected.
+- DB: re-normalized all 12 plays whose `norm_key_core` still held broken values from
+  before the 1.2.2 fix. Root cause: `normalize_new_plays` only processes plays with
+  NULL norm fields, so plays normalized before the fix retained their broken
+  `norm_key_core`. On subsequent scrape runs, `seed_new_canonicals` saw plays with no
+  matching canonical and created ghost canonicals (0 mapped plays, but visible in
+  exported CSVs).
+- DB: deleted 4 ghost canonicals created by the above mechanism:
+  - 2826 The Clash "Rudie Can't Fail"
+  - 2828 Foy Vance "Hi, I'm The Preacher's Son"
+  - 2829 Maggie Rogers "That's Where I Am"
+  - 2830 Ringo Starr "It's Been Too Long"
+- DB: corrected `norm_key_core`, `norm_artist`, and `norm_title_core` for canonical
+  2639 (The Head And The Heart - "Don't Dream It's Over"), which held U+0092 in
+  its `display_title` and a split norm_key (`don t dream it s over`).
+- Post-repair: 0 ghost canonicals, 0 plays with split-contraction norm_keys, 0
+  plays whose `norm_key_core` differs from their mapped canonical.
+
+---
+
 ## [1.2.2] - 2026-04-11
 
 ### Fixed
