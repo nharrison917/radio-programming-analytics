@@ -21,8 +21,10 @@ def run_full_audit():
     # --- Suspicious Titles ---
     if FLAG_SUSPICIOUS_TITLE:
         cur.execute("""
-            SELECT id, play_ts, station_show, title, source_url
-            FROM plays
+            SELECT p.id, p.play_ts, p.station_show, p.title, p.source_url
+            FROM plays p
+            LEFT JOIN plays_to_canonical ptc ON ptc.play_id = p.id
+            WHERE ptc.play_id IS NULL
         """)
         rows = cur.fetchall()
 

@@ -1,4 +1,4 @@
-# Library Exports (generated 2026-04-12)
+# Library Exports (generated 2026-04-15)
 # fn=function, class=class
 
 ## (root)/
@@ -24,6 +24,14 @@ analysis.py
   fn top_fresh_tracks_by_week
   fn print_fresh_tracks_report
   fn run_analysis
+band_age.py
+  fn _load_data
+  fn _apply_segmentation
+  fn _coverage_summary
+  fn _compute_band_age
+  fn _summary_csv
+  fn _boxplot
+  fn run_band_age
 boxplot_release_year.py
   fn build_release_year_boxplot
 era_continuity.py
@@ -98,6 +106,20 @@ enrichment.py
 fetch.py
   fn is_allowed_url
   fn fetch_url
+mb_artist_enrichment.py
+  fn _get
+  fn _mbid_from_isrc_response
+  fn _resolve_via_isrc
+  fn _resolve_via_name
+  fn _run_pass_a
+  fn _print_pass_a_summary
+  fn _earliest_rg_year
+  fn _run_pass_b
+  fn _print_pass_b_summary
+  fn _write_mb_artist_missing_csv
+  fn _write_mb_artist_large_delta_csv
+  fn run_mb_artist_enrichment
+  fn run_set_artist_meta
 mb_enrichment.py
   fn _earliest_valid_year
   fn _lookup_isrc

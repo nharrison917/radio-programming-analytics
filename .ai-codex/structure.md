@@ -1,7 +1,8 @@
-# Project Structure (generated 2026-04-12)
+# Project Structure (generated 2026-04-15)
 
 analytics/
   outputs/
+    band_age/
     clustering/
     era/
     era_continuity/
