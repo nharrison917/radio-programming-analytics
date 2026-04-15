@@ -8,6 +8,80 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.0] - 2026-04-15
+
+Band Age at Recording: MusicBrainz artist career-start enrichment and per-show analytics.
+
+### Added
+- `scraper/mb_artist_enrichment.py`: two-pass MusicBrainz artist enrichment pipeline.
+  - Pass A resolves `mb_artist_id` via ISRC endpoint (primary) with fuzzy name
+    validation, falling back to MB artist name search. ISRC-derived MBIDs where
+    the MB primary artist credit scores below `ISRC_REJECT_THRESHOLD = 55` are
+    rejected and fall through to name search (catches wrong-primary-credit ISRCs,
+    e.g. featuring tracks credited to a producer).
+  - Pass B browses all Album/Single/EP release-groups per resolved artist, excludes
+    Compilation and Live secondary types, and stores the earliest valid year as
+    `mb_earliest_release_year`. Idempotent with a 7-day FAILED retry window.
+  - Manual correction: `python rs_main.py set-artist-meta --artist-name "..." --mb-id "..."`
+    corrects a wrong MBID and immediately re-runs Pass B for that artist.
+  - `NO_MATCH` guard: artists with `mb_artist_status = 'NO_MATCH'` are permanently
+    excluded from Pass A retries, same semantics as track-level enrichment.
+- `analytics/band_age.py`: Band Age at Recording analytics. Computes
+  `best_year - mb_earliest_release_year` per play, measuring how far into their
+  career an artist was when a track was recorded. Only `mb_artist_status = 'SUCCESS'`
+  tracks contribute; per-show coverage % reported alongside metrics. SEGMENT_SHOWS
+  filtered via `get_inband_tracks()`. Outputs to `analytics/outputs/band_age/`:
+  - `band_age_summary.csv` -- per-show mean, median, P25, P75, min, max, coverage
+  - `boxplot_band_age.html` -- Plotly boxplot sorted by median; coverage % as x-axis subtitle
+- `analytics/outputs/quality_checks/mb_artist_missing.csv`: artists with no
+  `mb_artist_id` (excluding `NO_MATCH`), with track count, play count, sample track,
+  and `has_isrc` flag. Regenerated at the end of every `mb-artist-enrich` run.
+- `analytics/outputs/quality_checks/mb_artist_large_delta.csv`: artists where
+  `|mb_earliest_release_year - spotify_earliest_year| > 5`. Includes signed `delta`,
+  `abs_delta` (sort key), and `mb_later_than_spotify` boolean to flag cases where
+  MB found a later start than Spotify (most likely to indicate a wrong MBID or bad
+  MB date entry). Regenerated at the end of every `mb-artist-enrich` run.
+- `rs_main.py`: `mb-artist-enrich` and `set-artist-meta` modes; `--artist-name` and
+  `--mb-id` args; `run_band_age()` wired into `analyze` pipeline.
+- `run_all.bat` (gitignored): `mb-artist-enrich` added after `mb-enrich`; `audit`
+  added at end after `analyze` to snapshot quality reports in the fully-enriched state.
+
+### Fixed
+- `scraper/mb_artist_enrichment.py`: Pass A name search was double-encoding spaces.
+  `urllib.parse.quote()` percent-encoded spaces to `%20` before `requests` re-encoded
+  the params, producing `%2520` -- MB received `artist:"Jack%2520Johnson"` and returned
+  no results. Every multi-word artist name silently failed name search regardless of
+  whether the artist exists in MB. Fix: removed `quote()` call; `requests` handles URL
+  encoding automatically. Resolved ~103 of 109 stuck artists; overall MB artist coverage
+  now 99.2% (915/922).
+- `scraper/mb_artist_enrichment.py`: Pass B now excludes release-groups with `Live`
+  secondary type alongside `Compilation`. A Wet Leg festival recording had a 2002 date
+  typo (event was 2022-04-03), pulling their earliest release year from 2021 to 2002.
+  Live releases are not a reliable career-start signal and are prone to bad date entries.
+
+### DB corrections (manual, this feature cycle)
+- 10 artist MBID corrections via `set-artist-meta`: Gary Jules, Eric Burdon, Rob Thomas,
+  Jonathan Richman, Everything (correct entity), Dada (correct entity), Ziggy Marley
+  (-> Ziggy Marley & The Melody Makers), The English Beat (-> The Beat, GB),
+  Gary U.S. Bonds, M / Robin Scott (-> M)
+- 2 artists set to `NO_MATCH`: D. Pritzker (no MB entity with data), Neil W Young
+  (obscure Canadian artist, genuinely absent from MB)
+- Wet Leg `mb_earliest_release_year` corrected 2002 -> 2021 after Live exclusion fix
+
+---
+
+## [1.6.1] - 2026-04-13
+
+### Fixed
+- `scraper/audit.py`: suspicious title check now excludes plays already mapped to a
+  canonical. Previously, every suspicious-looking play fired a warning on every scrape
+  run regardless of whether it had been successfully canonicalized. The query now LEFT
+  JOINs `plays_to_canonical` and filters to unmapped plays only, so warnings are
+  suppressed once a play is resolved. Plays that are too malformed to survive
+  normalization and canonicalization continue to warn as before.
+
+---
+
 ## [1.6.0] - 2026-04-12
 
 Output directory reorganisation and documentation cleanup.

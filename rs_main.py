@@ -27,15 +27,18 @@ def main():
     parser.add_argument(
         "mode",
         choices=["scrape", "weekly", "analyze", "cluster", "backfill", "audit",
-                 "enrich-meta", "mb-enrich", "add-override", "set-meta"],
+                 "enrich-meta", "mb-enrich", "mb-artist-enrich", "set-artist-meta",
+                 "add-override", "set-meta"],
         help="Which job to run"
     )
     parser.add_argument("--start", type=str, help="ISO start datetime (YYYY-MM-DDTHH:MM)")
     parser.add_argument("--end",   type=str, help="ISO end datetime (YYYY-MM-DDTHH:MM)")
-    parser.add_argument("--id",         type=int, help="canonical_id (add-override, set-meta)")
-    parser.add_argument("--spotify-id", type=str, help="Spotify track ID (add-override)")
-    parser.add_argument("--year",       type=str, help="Year override: YYYY or YYYY-MM-DD (set-meta)")
-    parser.add_argument("--duration",   type=str, help="Duration override: M:SS (set-meta)")
+    parser.add_argument("--id",          type=int, help="canonical_id (add-override, set-meta)")
+    parser.add_argument("--spotify-id",  type=str, help="Spotify track ID (add-override)")
+    parser.add_argument("--year",        type=str, help="Year override: YYYY or YYYY-MM-DD (set-meta)")
+    parser.add_argument("--duration",    type=str, help="Duration override: M:SS (set-meta)")
+    parser.add_argument("--artist-name", type=str, help="Artist name (set-artist-meta)")
+    parser.add_argument("--mb-id",       type=str, help="MusicBrainz artist MBID (set-artist-meta)")
 
     args = parser.parse_args()
 
@@ -70,6 +73,7 @@ def main():
         from analytics.heatmap_avg_release_year import run_heatmap_avg_release_year
         from analytics.wednesday_freshness import run_wednesday_freshness
         from analytics.segment_breakers import run_segment_breakers
+        from analytics.band_age import run_band_age
 
         run_analysis()
         run_era_continuity()
@@ -78,6 +82,7 @@ def main():
         run_heatmap_avg_release_year()
         run_wednesday_freshness()
         run_segment_breakers()
+        run_band_age()
 
     elif args.mode == "cluster":
         from analytics.show_clustering import run_show_clustering
@@ -97,6 +102,17 @@ def main():
     elif args.mode == "mb-enrich":
         from scraper.mb_enrichment import run_mb_enrichment
         run_mb_enrichment()
+
+    elif args.mode == "mb-artist-enrich":
+        from scraper.mb_artist_enrichment import run_mb_artist_enrichment
+        run_mb_artist_enrichment()
+
+    elif args.mode == "set-artist-meta":
+        if not args.artist_name or not args.mb_id:
+            print("set-artist-meta requires --artist-name <name> and --mb-id <mbid>")
+            return
+        from scraper.mb_artist_enrichment import run_set_artist_meta
+        run_set_artist_meta(args.artist_name, args.mb_id)
 
     elif args.mode == "audit":
         run_full_audit()

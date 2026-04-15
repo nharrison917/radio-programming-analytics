@@ -20,10 +20,10 @@ Spotify match rate (as of 2026-03-31).
 4. **Analytics** -- `analytics/analysis.py`, `analytics/visuals.py`,
    `analytics/boxplot_release_year.py`, `analytics/heatmap_*.py`,
    `analytics/era_continuity.py`, `analytics/wednesday_freshness.py`,
-   `analytics/show_clustering.py`
+   `analytics/show_clustering.py`, `analytics/band_age.py`
    Shannon entropy, freshness %, avg release year, artist breadth, weekly fresh tracks,
-   era continuity metrics, hierarchical show clustering. All outputs generated via
-   `python rs_main.py analyze`.
+   era continuity metrics, hierarchical show clustering, band age at recording.
+   All outputs generated via `python rs_main.py analyze`.
 
 ## Entry points
 
@@ -33,7 +33,8 @@ python rs_main.py weekly      # Enrichment run
 python rs_main.py analyze     # All analytics + visuals
 python rs_main.py audit       # Standalone audit
 python rs_main.py enrich-meta # Backfill spotify_isrc + spotify_album_type (~600/day limit)
-python rs_main.py mb-enrich   # MusicBrainz ISRC lookup for compilation/remaster tracks
+python rs_main.py mb-enrich         # MusicBrainz ISRC lookup for compilation/remaster tracks
+python rs_main.py mb-artist-enrich  # MusicBrainz artist MBID + earliest release year backfill
 python rs_main.py add-override --id <canonical_id> --spotify-id <spotify_id>  # Spotify ID override for FAILED tracks
 python rs_main.py set-meta --id <canonical_id> [--year YYYY|YYYY-MM-DD] [--duration M:SS]  # Manual year/duration for non-Spotify tracks
 python rs_main.py backfill --start YYYY-MM-DDTHH:MM --end YYYY-MM-DDTHH:MM
@@ -50,7 +51,7 @@ ingest -> normalize -> seed canonicals -> map plays -> audit
 |---|---|---|
 | `plays` | Raw play records | `id`, `play_ts`, `station_show`, `is_music_show`, `title`, `artist`, `norm_key_core` |
 | `canonical_tracks` | Deduplicated track entities with Spotify metadata | `canonical_id`, `norm_key_core`, `display_artist`, `display_title`, `play_count`, `first_play_ts`, `last_play_ts`, `spotify_id`, `spotify_status`, `spotify_album_release_year`, `spotify_album_type`, `spotify_isrc`, `spotify_primary_artist_name`, `spotify_primary_artist_id`, `mb_isrc_year`, `mb_lookup_status`, `mb_title_artist_year`, `mb_ta_status`, `manual_year_override`, `manual_release_date`, `manual_duration_ms` |
-| `canonical_artists` | Per-artist Spotify metadata (career-level) | `spotify_artist_id`, `artist_name`, `earliest_release_year`, `enrichment_status` |
+| `canonical_artists` | Per-artist Spotify metadata (career-level) | `spotify_artist_id`, `artist_name`, `earliest_release_year`, `enrichment_status`, `mb_artist_id`, `mb_earliest_release_year`, `mb_artist_status` |
 | `plays_to_canonical` | Many-to-one mapping of plays to canonicals | `play_id`, `canonical_id`, `match_method` |
 | `manual_spotify_overrides` | Hand-supplied Spotify IDs for FAILED tracks | `canonical_id`, `spotify_id` |
 | `play_insert_conflicts` | Idempotency conflict log | (rarely queried directly) |
@@ -67,6 +68,7 @@ Notes: `canonical_tracks.spotify_status` uses the enrichment status model below.
 | `scraper/artist_enrichment.py` | Artist career metadata (earliest_release_year) via Spotify; runs as part of `weekly` |
 | `scraper/spotify_backfill.py` | One-time backfill of ISRC + album_type for existing records |
 | `scraper/mb_enrichment.py` | MusicBrainz ISRC lookup for compilation/remaster tracks |
+| `scraper/mb_artist_enrichment.py` | MusicBrainz artist MBID resolution + earliest release year (band age metric) |
 | `scraper/overrides.py` | Manual override CLI: `add-override` (Spotify ID) and `set-meta` (year/duration) |
 | `scraper/audit.py` | Post-pipeline data quality checks |
 | `analytics/era_continuity.py` | Consecutive-pair era metrics; `get_inband_tracks()` for density-based segmentation |
@@ -151,12 +153,13 @@ tracked in git -- all other subdirectories are gitignored.
 
 | Subdirectory | Contents | Git |
 |---|---|---|
-| `quality_checks/` | enrichment_failures.csv, enrichment_attempt_3_4.csv, spotify_failed.csv, mb_failed.csv, segment_breakers.csv | Tracked |
+| `quality_checks/` | enrichment_failures.csv, enrichment_attempt_3_4.csv, spotify_failed.csv, mb_failed.csv, segment_breakers.csv, mb_artist_missing.csv, mb_artist_large_delta.csv | Tracked |
 | `clustering/` | cluster_*.html, show_clustering_features.csv | Ignored |
 | `era/` | boxplot_release_year.html, heatmap_avg_release_year.png, analytics_avg_album_year.csv | Ignored |
 | `era_continuity/` | era_continuity*.csv, era_continuity*.html | Ignored |
 | `freshness/` | wednesday_freshness.html, density_vs_freshness.png, analytics_freshness.csv, analytics_fresh_tracks.csv | Ignored |
 | `rotation/` | heatmap_weekly_density.png, analytics_entropy.csv, analytics_exclusive_artists.csv, analytics_artist_breadth.csv, analytics_unique_artists_per_hour.csv | Ignored |
+| `band_age/` | boxplot_band_age.html, band_age_summary.csv | Ignored |
 
 HTML outputs use Plotly (interactive); static charts use matplotlib.
 - `logs/` -- rotating logs: `scrape_*.log`, `weekly_*.log`, `audit_*.log`, `analysis_*.log`
@@ -169,9 +172,13 @@ Configured in `config.py`:
 - `LOW_PLAY_SUPPRESSED_TITLE_SIGNALS` -- title strings that suppress warnings for
   that hour and the following hour
 
-## What's in scope right now (as of 2026-04-10)
+## What's in scope right now (as of 2026-04-15)
 
-- Phase Three: MBID-based manual year overrides (see PHASE_THREE.md)
+- MB artist enrichment: 99.2% coverage (915/922). Remaining open items tracked in
+  `quality_checks/mb_artist_missing.csv` (2 genuinely absent) and
+  `quality_checks/mb_artist_large_delta.csv` (3 wrong-entity cases still needing correction:
+  Monotones, Tom Hamilton, Katie Schecter).
+- Phase Three: MBID-based manual year overrides (see PHASE_THREE.md) -- not yet started
 - Dataset growth and continued enrichment runs
 
 ## Segmented shows

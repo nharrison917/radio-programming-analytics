@@ -22,6 +22,7 @@ analytics/outputs/era/
 analytics/outputs/era_continuity/
 analytics/outputs/freshness/
 analytics/outputs/rotation/
+analytics/outputs/band_age/
 
 run_scraper.bat
 run_weekly.bat
