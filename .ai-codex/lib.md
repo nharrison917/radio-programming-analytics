@@ -31,6 +31,7 @@ band_age.py
   fn _compute_band_age
   fn _summary_csv
   fn _boxplot
+  fn _write_band_age_quality_reports
   fn run_band_age
 boxplot_release_year.py
   fn build_release_year_boxplot

@@ -57,6 +57,39 @@ can locate manually on Spotify.
 
 **When not to use:** tracks that are genuinely not on Spotify. Use `set-meta` instead.
 
+### Correcting a wrong SUCCESS match (collab/cover version)
+
+`add-override` only fires for `FAILED` tracks. If the enrichment matched to the wrong
+version (e.g. a collaboration where the scraped artist is a featured credit, or a cover
+by a different act), the track has `spotify_status = 'SUCCESS'` and the override will
+sit unused in `manual_spotify_overrides` until the track enters the FAILED queue.
+
+Procedure:
+1. Apply the override as normal: `python rs_main.py add-override --id <id> --spotify-id <correct_id>`
+2. Force the track into the FAILED queue:
+```python
+import sqlite3
+conn = sqlite3.connect("radio_plays.db")
+conn.execute("""
+    UPDATE canonical_tracks
+    SET spotify_status = 'FAILED',
+        spotify_album_id = NULL,
+        spotify_last_attempted_at = NULL
+    WHERE canonical_id = <id>
+""")
+conn.commit()
+conn.close()
+```
+3. Run `python rs_main.py weekly` -- the override check fires first, fetching the correct track directly.
+4. If MB fields (mb_isrc_year, mb_title_artist_year) were populated from the wrong match,
+   clear them and reset their status columns to NULL before running `python rs_main.py mb-enrich`.
+
+**How to identify wrong SUCCESS matches:** check `band_age_negative.csv` (band age < -2
+is a strong signal), or look for a large divergence between the scraped artist and
+`spotify_primary_artist_name` in the DB. The enrichment scorer uses max similarity across
+all credited artists, so a collab track where the scraped artist is a featured credit
+will score 100/100 even when the primary artist is wrong.
+
 ---
 
 ## `set-meta` -- manually set year and/or duration
@@ -225,6 +258,7 @@ If wrong entity: `set-artist-meta`. If the MBID is correct but MB has bad date d
 | Situation | Command |
 |---|---|
 | Track on Spotify, search failed (normalization, title mismatch) | `add-override` |
+| Track matched to wrong version (collab/cover), status is SUCCESS | Set to FAILED first (see above), then `add-override` |
 | Track not on Spotify, found on MB/Discogs | `set-meta` |
 | Track not on Spotify, year known but not duration | `set-meta --year` |
 | Track is a station session / cover with no release -- will never resolve | SQL: set `spotify_status = 'NO_MATCH'` directly |

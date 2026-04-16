@@ -8,6 +8,60 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.1] - 2026-04-16
+
+band_age quality reports, Spotify fallback for career-start year, and wrong-match
+override procedure.
+
+### Added
+- `analytics/band_age.py`: two new quality CSVs written at the end of every analyze run:
+  - `quality_checks/band_age_negative.csv` -- canonical tracks with `band_age < -2`;
+    one row per track, sorted worst-first. Signals wrong Spotify primary artist
+    (collab/cover match) or bad MB ISRC/title-artist data.
+  - `quality_checks/band_age_extreme.csv` -- canonical tracks with `band_age > 50`;
+    sorted descending. Primarily veteran artists still releasing; review for wrong MBIDs.
+  - Both include: `canonical_id`, `display_artist`, `display_title`, `best_year`,
+    `career_start_year`, `career_start_source`, `band_age`, `play_count`,
+    `mb_artist_status`, `spotify_album_release_year`, `mb_isrc_year`, `mb_title_artist_year`.
+- `MANUAL_OVERRIDE.md`: wrong SUCCESS-match procedure. When enrichment matches to a
+  collab or cover version (spotify_status = 'SUCCESS' but wrong primary artist), the
+  override in `manual_spotify_overrides` is silently ignored -- the enrichment WHERE
+  clause only selects PENDING/FAILED tracks. Fix: set the track to FAILED and clear
+  `spotify_album_id` and `spotify_last_attempted_at` before running weekly.
+- `PLAN.md`: session carry-forward document covering the primary_artist_mismatch report
+  design, pending pipeline items, and known enrichment bug.
+
+### Changed
+- `analytics/band_age.py`: `career_start_year` resolution now falls back to Spotify's
+  `earliest_release_year` when `mb_artist_status != 'SUCCESS'` or
+  `mb_earliest_release_year` is NULL. Previously these plays were excluded entirely.
+  Spotify fallback is flagged as `career_start_source = 'spotify'` in the summary CSV
+  and boxplot subtitle. Coverage improved from ~99% to 100% on current dataset.
+- `scraper/config.py`: `ARTIST_ENRICHMENT_BATCH_SIZE` increased from 45 to 50.
+
+### Fixed
+- `analytics/band_age.py`: false `mb_title_artist_year = 1990` on Spoon "Wild" cleared
+  (MB title/artist search matched a different artist's "Wild"; Spoon formed 1993/1994).
+  `mb_ta_status` kept SUCCESS to prevent retry. `best_year` now correctly uses
+  `mb_isrc_year = 2021`.
+- `analytics/band_age.py`: false `mb_isrc_year = 1994` on Rob Thomas "3 Am" cleared
+  (MB associated a 2005-registered ISRC with the original Matchbox Twenty recording).
+  `mb_lookup_status` kept SUCCESS to prevent retry. `best_year` now uses Spotify 2005.
+
+### DB corrections (manual, this cycle)
+- Band of Gypsys "Them Changes" (canonical 71): set `spotify_status = 'NO_MATCH'`,
+  `manual_year_override = 1970`. Spotify matched to "The Return Of The Band Of Gypsys"
+  (a different 2023 act); no correct Spotify track exists. Closed wrong artist entity
+  in `canonical_artists` with `mb_artist_status = 'NO_MATCH'`.
+- Aerosmith "Walk This Way" (canonical 1818): override applied to 1975 Toys in the Attic
+  version (was matched to Run-D.M.C. collab 1986). MB fields cleared for re-enrichment.
+  Pending weekly + mb-enrich.
+- The La's "There She Goes" (canonical 803): override applied to 1990 original (was
+  matched to CYRIL 2025 cover). All MB fields cleared. Pending weekly + set-artist-meta
+  (MBID ff3e88b3-7354-4f30-967c-1a61ebc8c642) + mb-enrich.
+
+---
+
 ## [1.7.0] - 2026-04-15
 
 Band Age at Recording: MusicBrainz artist career-start enrichment and per-show analytics.

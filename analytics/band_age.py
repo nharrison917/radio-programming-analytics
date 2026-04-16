@@ -39,6 +39,11 @@ DB_PATH = Path(__file__).resolve().parents[1] / "radio_plays.db"
 OUTPUT_DIR = Path(__file__).resolve().parent / "outputs"
 BAND_AGE_DIR = OUTPUT_DIR / "band_age"
 BAND_AGE_DIR.mkdir(parents=True, exist_ok=True)
+QUALITY_DIR = OUTPUT_DIR / "quality_checks"
+QUALITY_DIR.mkdir(parents=True, exist_ok=True)
+
+BAND_AGE_NEG_THRESHOLD = -2
+BAND_AGE_POS_THRESHOLD = 50
 
 BEST_YEAR_SQL = """
     CASE
@@ -73,6 +78,9 @@ def _load_data():
             ct.display_artist,
             ct.display_title,
             ct.spotify_primary_artist_id,
+            ct.spotify_album_release_year,
+            ct.mb_isrc_year,
+            ct.mb_title_artist_year,
             ca.mb_artist_status,
             ca.mb_earliest_release_year,
             ca.earliest_release_year,
@@ -248,6 +256,46 @@ def _boxplot(df_age, cov):
     print(f"  Saved: {out_path}")
 
 
+def _write_band_age_quality_reports(df_age):
+    """Write quality CSVs for band_age outliers: negatives and extreme positives."""
+    per_track = (
+        df_age.groupby("canonical_id")
+        .agg(
+            display_artist=("display_artist", "first"),
+            display_title=("display_title", "first"),
+            best_year=("best_year", "first"),
+            career_start_year=("career_start_year", "first"),
+            career_start_source=("career_start_source", "first"),
+            band_age=("band_age", "first"),
+            mb_artist_status=("mb_artist_status", "first"),
+            spotify_album_release_year=("spotify_album_release_year", "first"),
+            mb_isrc_year=("mb_isrc_year", "first"),
+            mb_title_artist_year=("mb_title_artist_year", "first"),
+            play_count=("play_id", "count"),
+        )
+        .reset_index()
+    )
+
+    col_order = [
+        "canonical_id", "display_artist", "display_title",
+        "best_year", "career_start_year", "career_start_source", "band_age",
+        "play_count", "mb_artist_status",
+        "spotify_album_release_year", "mb_isrc_year", "mb_title_artist_year",
+    ]
+
+    neg = per_track[per_track["band_age"] < BAND_AGE_NEG_THRESHOLD].sort_values("band_age")
+    neg_path = QUALITY_DIR / "band_age_negative.csv"
+    neg[col_order].to_csv(neg_path, index=False)
+    print(f"  Saved: {neg_path} ({len(neg)} tracks)")
+
+    pos = per_track[per_track["band_age"] > BAND_AGE_POS_THRESHOLD].sort_values(
+        "band_age", ascending=False
+    )
+    pos_path = QUALITY_DIR / "band_age_extreme.csv"
+    pos[col_order].to_csv(pos_path, index=False)
+    print(f"  Saved: {pos_path} ({len(pos)} tracks)")
+
+
 def run_band_age():
     print("=== Band Age at Recording ===")
     print()
@@ -281,6 +329,9 @@ def run_band_age():
 
     print("  Writing boxplot...")
     _boxplot(df_age, cov)
+
+    print("  Writing quality reports...")
+    _write_band_age_quality_reports(df_age)
 
     print()
     print("  --- Per-show summary (sorted by median band age) ---")
