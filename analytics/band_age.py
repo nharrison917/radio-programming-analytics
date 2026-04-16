@@ -1,16 +1,22 @@
 # analytics/band_age.py
 # -*- coding: utf-8 -*-
 """
-Band age at recording: best_year - mb_earliest_release_year.
+Band age at recording: best_year - career_start_year.
 
 Measures how far into their career an artist was when a played track was
 recorded.  A show playing deep classic-rock back-catalogue will have high
 band age; a new-music show will have low band age even if the tracks are
 from recently established artists.
 
-Coverage note: only tracks where canonical_artists.mb_artist_status =
-'SUCCESS' are included.  Coverage % is reported per show so the reader
-can judge how reliable each show's metric is.
+Career start year resolution (per artist):
+  1. mb_earliest_release_year  -- when mb_artist_status = 'SUCCESS' (best:
+     covers pre-streaming career via full release-group browse)
+  2. earliest_release_year     -- Spotify fallback when MB has no data
+     (NO_MATCH, FAILED, or NULL); may understate career length for older
+     artists whose full back-catalogue is not on Spotify
+
+Coverage is reported per show as MB% and Spotify% so the reader can judge
+how reliable each show's metric is.
 
 Outputs (analytics/outputs/band_age/):
   boxplot_band_age.html        -- per-show boxplot sorted by median
@@ -69,6 +75,7 @@ def _load_data():
             ct.spotify_primary_artist_id,
             ca.mb_artist_status,
             ca.mb_earliest_release_year,
+            ca.earliest_release_year,
             ({BEST_YEAR_SQL}) AS best_year
         FROM plays p
         JOIN plays_to_canonical ptc ON p.id = ptc.play_id
@@ -100,32 +107,63 @@ def _apply_segmentation(df):
 
 
 def _coverage_summary(df):
-    """Per-show coverage: how many plays have MB artist data + best_year."""
+    """Per-show coverage split by career-start source (MB vs Spotify fallback)."""
     total = df.groupby("station_show")["play_id"].count().rename("n_total")
-    covered = (
-        df[
-            (df["mb_artist_status"] == "SUCCESS")
-            & df["best_year"].notna()
-        ]
-        .groupby("station_show")["play_id"]
-        .count()
-        .rename("n_covered")
+
+    mb_mask = (
+        (df["mb_artist_status"] == "SUCCESS")
+        & df["mb_earliest_release_year"].notna()
+        & df["best_year"].notna()
     )
-    cov = pd.concat([total, covered], axis=1).fillna(0)
+    sp_mask = (
+        ~mb_mask
+        & df["earliest_release_year"].notna()
+        & df["best_year"].notna()
+    )
+
+    n_mb = (
+        df[mb_mask].groupby("station_show")["play_id"].count().rename("n_mb")
+    )
+    n_sp = (
+        df[sp_mask].groupby("station_show")["play_id"].count().rename("n_spotify")
+    )
+
+    cov = pd.concat([total, n_mb, n_sp], axis=1).fillna(0)
+    cov["n_covered"] = cov["n_mb"] + cov["n_spotify"]
     cov["coverage_pct"] = (cov["n_covered"] / cov["n_total"] * 100).round(1)
+    cov["mb_pct"]      = (cov["n_mb"]      / cov["n_total"] * 100).round(1)
+    cov["spotify_pct"] = (cov["n_spotify"] / cov["n_total"] * 100).round(1)
     return cov
 
 
 def _compute_band_age(df):
-    """Filter to covered tracks and compute band_age_at_recording."""
-    covered = df[
+    """Resolve career_start_year and compute band_age_at_recording.
+
+    Resolution order per play:
+      1. mb_earliest_release_year  (mb_artist_status = 'SUCCESS')
+      2. earliest_release_year     (Spotify fallback)
+    Plays with neither are excluded.
+    """
+    df = df.copy()
+
+    mb_mask = (
         (df["mb_artist_status"] == "SUCCESS")
-        & df["best_year"].notna()
         & df["mb_earliest_release_year"].notna()
-    ].copy()
-    covered["best_year"] = covered["best_year"].astype(int)
-    covered["mb_earliest_release_year"] = covered["mb_earliest_release_year"].astype(int)
-    covered["band_age"] = covered["best_year"] - covered["mb_earliest_release_year"]
+    )
+    sp_mask = ~mb_mask & df["earliest_release_year"].notna()
+
+    df["career_start_year"]   = np.nan
+    df["career_start_source"] = None
+
+    df.loc[mb_mask, "career_start_year"]   = df.loc[mb_mask, "mb_earliest_release_year"]
+    df.loc[mb_mask, "career_start_source"] = "mb"
+    df.loc[sp_mask, "career_start_year"]   = df.loc[sp_mask, "earliest_release_year"]
+    df.loc[sp_mask, "career_start_source"] = "spotify"
+
+    covered = df[df["career_start_year"].notna() & df["best_year"].notna()].copy()
+    covered["career_start_year"] = covered["career_start_year"].astype(int)
+    covered["best_year"]         = covered["best_year"].astype(int)
+    covered["band_age"]          = covered["best_year"] - covered["career_start_year"]
     return covered
 
 
@@ -146,7 +184,8 @@ def _summary_csv(df_age, cov):
     )
     out = stats.merge(cov.reset_index(), on="station_show", how="left")
     col_order = [
-        "station_show", "n_total", "n_covered", "coverage_pct",
+        "station_show", "n_total", "n_mb", "n_spotify", "n_covered",
+        "coverage_pct", "mb_pct", "spotify_pct",
         "mean_band_age", "median_band_age",
         "p25_band_age", "p75_band_age",
         "min_band_age", "max_band_age",
@@ -167,15 +206,16 @@ def _boxplot(df_age, cov):
         .index.tolist()
     )
 
-    # Coverage label suffix for each show name on the x-axis
-    cov_dict = cov["coverage_pct"].to_dict()
+    cov_pct_dict = cov["coverage_pct"].to_dict()
+    mb_pct_dict  = cov["mb_pct"].to_dict()
 
     fig = go.Figure()
 
     for show in show_order:
-        ages = df_age[df_age["station_show"] == show]["band_age"]
-        cov_pct = cov_dict.get(show, 0)
-        label = f"{show}<br><sup>{cov_pct:.0f}% covered</sup>"
+        ages    = df_age[df_age["station_show"] == show]["band_age"]
+        cov_pct = cov_pct_dict.get(show, 0)
+        mb_pct  = mb_pct_dict.get(show, 0)
+        label   = f"{show}<br><sup>{cov_pct:.0f}% covered ({mb_pct:.0f}% MB)</sup>"
         fig.add_trace(go.Box(
             y=ages,
             name=label,
@@ -185,8 +225,8 @@ def _boxplot(df_age, cov):
 
     fig.update_layout(
         title="Band Age at Recording by Show<br>"
-              "<sup>Years between artist's earliest release and track's best_year "
-              "(MB-covered tracks only)</sup>",
+              "<sup>Years between artist's earliest release and track's best_year. "
+              "MB source preferred; Spotify earliest year used as fallback.</sup>",
         yaxis_title="Band age at recording (years)",
         xaxis_title="Show",
         showlegend=False,
@@ -221,11 +261,16 @@ def run_band_age():
     # Coverage before filtering
     cov = _coverage_summary(df)
 
-    total_plays = len(df)
-    covered_plays = int(cov["n_covered"].sum())
-    overall_pct = covered_plays / total_plays * 100 if total_plays else 0
-    print(f"  Overall coverage: {covered_plays}/{total_plays} plays "
-          f"({overall_pct:.1f}%) have MB artist data + best_year")
+    total_plays   = len(df)
+    n_mb          = int(cov["n_mb"].sum())
+    n_spotify     = int(cov["n_spotify"].sum())
+    n_covered     = n_mb + n_spotify
+    overall_pct   = n_covered / total_plays * 100 if total_plays else 0
+    mb_pct        = n_mb      / total_plays * 100 if total_plays else 0
+    spotify_pct   = n_spotify / total_plays * 100 if total_plays else 0
+    print(f"  Overall coverage : {n_covered}/{total_plays} plays ({overall_pct:.1f}%)")
+    print(f"    MB source      : {n_mb} ({mb_pct:.1f}%)")
+    print(f"    Spotify source : {n_spotify} ({spotify_pct:.1f}%)")
     print()
 
     print("  Computing band age...")
@@ -239,12 +284,14 @@ def run_band_age():
 
     print()
     print("  --- Per-show summary (sorted by median band age) ---")
-    print(f"  {'Show':<42} {'Coverage':>9} {'Median':>7} {'Mean':>7} {'P25':>6} {'P75':>6}")
-    print("  " + "-" * 80)
+    print(f"  {'Show':<42} {'Cvd%':>5} {'MB%':>5} {'SP%':>5} {'Median':>7} {'Mean':>7} {'P25':>6} {'P75':>6}")
+    print("  " + "-" * 90)
     for _, row in summary.iterrows():
         print(
             f"  {row['station_show']:<42} "
-            f"  {row['coverage_pct']:>6.1f}%"
+            f"  {row['coverage_pct']:>4.0f}%"
+            f"  {row['mb_pct']:>4.0f}%"
+            f"  {row['spotify_pct']:>4.0f}%"
             f"  {row['median_band_age']:>6.1f}yr"
             f"  {row['mean_band_age']:>6.1f}yr"
             f"  {row['p25_band_age']:>5.1f}yr"
