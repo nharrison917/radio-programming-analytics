@@ -1,10 +1,9 @@
 artist_name,spotify_earliest_year,mb_earliest_year,delta,abs_delta,mb_later_than_spotify,mb_artist_id,play_count
 Barrett Strong,2008,1959,-49,49,0,31ee774b-6248-48d5-a8b5-0d9bebeaba9d,1
+Monotones,2006,1957,-49,49,0,abaabae8-2d0f-4fde-94e8-f2b88d6e11c8,1
 The Bobby Fuller Four,1998,1965,-33,33,0,c83691bd-ed58-4d97-9edb-3043ace33856,1
 Steam,2000,1969,-31,31,0,7c1bfa64-9ff6-4b3f-a5aa-610298b76a55,1
 Black 47,1965,1991,26,26,1,355ac0da-ab94-48c2-badd-41f3986041cd,2
-Tom Hamilton,2026,2001,-25,25,0,606ef8a3-d8aa-4448-8d2d-07ef62f19b58,4
-Monotones,2006,1982,-24,24,0,da014b60-38aa-422c-9f65-e3f0bd0e39c2,1
 Captain Sensible,1995,1978,-17,17,0,c5b9c6e1-3aa2-4ff5-a89a-d4e86b09fcdf,1
 John Butler,2012,1996,-16,16,0,790278a2-0256-447e-891d-991211e90a86,1
 Jeff Tweedy,2014,1999,-15,15,0,63287966-6021-474a-ba76-edc37a5f1b7c,3
@@ -34,7 +33,6 @@ Alanis Morissette,1995,1987,-8,8,0,4bdcee62-4902-4773-8cd1-e252e2e31225,13
 David Essex,1973,1965,-8,8,0,822e180a-061a-4da0-a1f3-35e8bdf5f240,1
 Jerry Garcia,1962,1970,8,8,1,1ecff755-607d-4130-9a8a-8873f27e5de5,2
 Jimmy Cliff,1970,1962,-8,8,0,2caa54a7-b08c-41da-b892-3a41abe778be,1
-Katie Schecter,2017,2025,8,8,1,1340bb6a-28f7-4515-b9cb-d5950cc2d8fe,1
 Kraftwerk,1978,1970,-8,8,0,5700dcd4-c139-4f31-aa3e-6382b9af9032,1
 Mon Rovîa,2026,2018,-8,8,0,f8fa26d4-c370-41d5-a163-ccd9c530b1d4,4
 Neil Finn,1998,1990,-8,8,0,3b7c93ab-40a5-4745-ab6b-eaafed2308bb,2
@@ -43,6 +41,7 @@ Andrew Gold,1975,1968,-7,7,0,10876f5a-9ac7-49c7-a2b6-46a3f1ac3523,1
 Annie Lennox,1981,1988,7,7,1,3e30aebd-0557-4cfd-8fb9-3945afa5d72b,1
 Ben Harper And The Innocent Criminals,1999,1992,-7,7,0,1582a5b8-538e-45e7-9ae4-4099439a0e79,1
 Chris Cornell,1999,1992,-7,7,0,cbf9738d-8f81-4a92-bc64-ede09341652d,2
+Gerry Rafferty,1978,1971,-7,7,0,563201cb-721c-4cfb-acca-c1ba69e3d1fb,1
 Lana Del Rey,2012,2005,-7,7,0,b7539c32-53e7-4908-bda3-81449c367da6,5
 Los Lobos,1983,1976,-7,7,0,2b9967c7-3246-4658-a561-ded5408dd9af,6
 Los Lonely Boys,2004,1997,-7,7,0,98fe243c-3685-4491-8135-edc713963be4,1
@@ -71,5 +70,5 @@ Shawn Mullins,1998,1992,-6,6,0,f20e3539-bf98-4066-85eb-12f254545660,5
 Social Distortion,1988,1982,-6,6,0,e1e05cce-3922-44e1-8f20-015abe5e309d,4
 Southern Culture on the Skids,1991,1985,-6,6,0,90c88f94-8b70-49fd-9726-cadf4306ef42,1
 Suki Waterhouse,2022,2016,-6,6,0,8389ff77-a7a4-4ba4-bf1b-17ded47d41a1,1
-The Smithereens,1986,1980,-6,6,0,fae2cd4c-f847-4cb3-b311-60c8906cdb0b,4
+The Smithereens,1986,1980,-6,6,0,fae2cd4c-f847-4cb3-b311-60c8906cdb0b,5
 Tom Petty,1989,1983,-6,6,0,5ca3f318-d028-4151-ac73-78e2b2d6cdcc,21
