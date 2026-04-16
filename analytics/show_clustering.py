@@ -115,30 +115,10 @@ def _load_plays():
 def compute_scalar_features(df):
     """
     Returns a DataFrame with one row per show and columns:
-      artist_entropy, unique_artists_per_hour, avg_best_year,
-      freshness_pct, exclusive_artist_pct, era_continuity_mean_gap
+      avg_best_year, exclusive_artist_pct, era_continuity_mean_gap,
+      era_spread, rotation_depth, band_age_score
     """
     shows = sorted(df["station_show"].unique())
-
-    # -- artist_entropy --
-    def _entropy(series):
-        probs = series.value_counts(normalize=True)
-        return float(-np.sum(probs * np.log2(probs + 1e-12)))
-
-    entropy = (
-        df.groupby("station_show")["norm_artist"]
-        .apply(_entropy)
-        .rename("artist_entropy")
-    )
-
-    # -- unique_artists_per_hour --
-    df_hr = df.copy()
-    df_hr["play_hour"] = df_hr["play_ts"].dt.floor("h")
-    broadcast_hours = (
-        df_hr.groupby("station_show")["play_hour"].nunique()
-    )
-    unique_artists = df.groupby("station_show")["norm_artist"].nunique()
-    uaph = (unique_artists / broadcast_hours).rename("unique_artists_per_hour")
 
     # -- avg_best_year --
     avg_year = (
@@ -147,14 +127,6 @@ def compute_scalar_features(df):
         .mean()
         .rename("avg_best_year")
     )
-
-    # -- freshness_pct --
-    current_year = datetime.now().year
-    cutoff_year = current_year - FRESHNESS_YEARS
-    df_fresh = df[df["best_year"] >= cutoff_year]
-    total_ct = df.groupby("station_show").size()
-    fresh_ct = df_fresh.groupby("station_show").size().reindex(total_ct.index, fill_value=0)
-    freshness = (fresh_ct / total_ct).rename("freshness_pct")
 
     # -- exclusive_artist_pct --
     artist_show_ct = (
@@ -223,14 +195,42 @@ def compute_scalar_features(df):
     conn.close()
     era_gap = era_df.set_index("station_show")["mean_abs_gap"].rename("era_continuity_mean_gap")
 
+    # -- band_age_score (composite: z-score median + IQR averaged into one vote) --
+    _band_age_path = OUTPUT_DIR / "band_age" / "band_age_summary.csv"
+    if _band_age_path.exists():
+        _ba = pd.read_csv(_band_age_path)
+        _ba["station_show"] = _ba["station_show"].str.rstrip("*").str.rstrip()
+        _ba = _ba[_ba["mb_pct"] >= 70].set_index("station_show")
+        _median = _ba["median_band_age"]
+        _iqr = _ba["p75_band_age"] - _ba["p25_band_age"]
+        _median_z = (_median - _median.mean()) / _median.std()
+        _iqr_z = (_iqr - _iqr.mean()) / _iqr.std()
+        band_age_score = ((_median_z + _iqr_z) / 2).rename("band_age_score")
+    else:
+        band_age_score = pd.Series(dtype=float, name="band_age_score")
+        print("  WARNING: band_age_summary.csv not found -- band_age_score excluded")
+
+    # -- era_spread (std dev of best_year: era breadth vs avg_best_year's center) --
+    era_spread = (
+        df.dropna(subset=["best_year"])
+        .groupby("station_show")["best_year"]
+        .std()
+        .rename("era_spread")
+    )
+
+    # -- rotation_depth (avg plays per unique track: repeat-cycle tightness) --
+    total_plays = df.groupby("station_show").size()
+    unique_tracks = df.groupby("station_show")["canonical_id"].nunique()
+    rotation_depth = (total_plays / unique_tracks).rename("rotation_depth")
+
     # -- Assemble --
     features = pd.DataFrame({
-        "artist_entropy": entropy,
-        "unique_artists_per_hour": uaph,
         "avg_best_year": avg_year,
-        "freshness_pct": freshness,
         "exclusive_artist_pct": excl_pct,
         "era_continuity_mean_gap": era_gap,
+        "era_spread": era_spread,
+        "rotation_depth": rotation_depth,
+        "band_age_score": band_age_score,
     })
     features.index.name = "station_show"
     features = features.loc[features.index.isin(shows)]
@@ -594,13 +594,13 @@ def run_show_clustering():
     # -----------------------------------------------------------------------
     print()
     print("--- Pass 4: Combined Equal-Weight ---")
-    print("  Scalar features: 6 dimensions")
-    print("  Repertoire MDS: 2 dimensions x3 weight = 6 effective votes")
-    print()
 
-    n_scalar = scalar_common.shape[1]        # 6
-    n_mds = mds_df.shape[1]                  # 2
-    rep_weight = n_scalar / n_mds            # = 3.0
+    n_scalar = scalar_common.shape[1]
+    n_mds = mds_df.shape[1]
+    rep_weight = n_scalar / n_mds
+    print(f"  Scalar features: {n_scalar} dimensions")
+    print(f"  Repertoire MDS: {n_mds} dimensions x{rep_weight:.1f} weight = {n_scalar} effective votes")
+    print()
 
     combined_eq_raw = pd.concat([scalar_common, mds_df * rep_weight], axis=1)
     combined_eq_scaled = StandardScaler().fit_transform(combined_eq_raw.values)
@@ -615,7 +615,7 @@ def run_show_clustering():
 
     _dendrogram(
         dist_cond_eq, display_common,
-        "Show Clustering -- Combined Equal-Weight (scalar 6v : repertoire 6v)",
+        f"Show Clustering -- Combined Equal-Weight (scalar {n_scalar}v : repertoire {n_scalar}v)",
         CLUSTER_DIR / "cluster_combined_equalweight_dendrogram.html",
         k_hint=3,
     )

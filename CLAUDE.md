@@ -176,6 +176,10 @@ Configured in `config.py`:
 
 ## What's in scope right now (as of 2026-04-16)
 
+- **Show clustering scalar features (v1.7.3):** six features -- `avg_best_year`,
+  `exclusive_artist_pct`, `era_continuity_mean_gap`, `era_spread`, `rotation_depth`,
+  `band_age_score` (composite). Removed: `artist_entropy`, `unique_artists_per_hour`,
+  `freshness_pct`. See PLAN.md for rationale and current cluster assignments.
 - MB artist enrichment: 99.2% coverage. Remaining open items in `mb_artist_missing.csv`
   and `mb_artist_large_delta.csv`. Known wrong-entity cases: Monotones, Tom Hamilton.
 - band_age quality reports: `band_age_negative.csv` (band_age < -2) and
@@ -209,7 +213,7 @@ distinct from the surrounding plays. For 10@10, bleed tracks from the station's
 regular rotation surround a single-era themed segment. For "This Just In", a new-music
 main block is followed by a 1-2 track intentional throwback tail at :50-:59. In both
 cases the surrounding/tail tracks are noise for show-identity analytics and distort
-every scalar feature (avg_best_year, freshness_pct, era_continuity_mean_gap, etc.).
+every scalar feature (avg_best_year, era_spread, era_continuity_mean_gap, etc.).
 
 Per-show segmentation parameters live in `SEGMENT_PARAMS` in `era_continuity.py`.
 All three current shows use the default (band=3yr, min_inband=8, consec_oob=2).

@@ -183,6 +183,8 @@ weekly.py
   fn run_weekly
 
 ## scratch/
+measure_clustering.py
+  fn measure
 spotify_status_helper.py
   fn update_spotify_status
   fn bulk_update_status

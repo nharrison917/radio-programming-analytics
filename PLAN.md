@@ -26,29 +26,46 @@ applying or add an `applied_at` column to prevent redundant re-fetches.
 
 ---
 
-## Future feature: band_age as a show clustering dimension
+## Show clustering: current scalar feature set (as of v1.7.3)
 
-The band_age boxplot already shows meaningful per-show variation -- some shows
-skew toward veteran artists at the peak of their career; others play recent material
-from newly-established acts. This is a different signal from avg_best_year (which
-tells you *when* the track was recorded) and could sharpen the clustering.
+Six features, each covering a distinct dimension:
 
-**What to add:** a `median_band_age` (or mean) scalar feature to `show_clustering.py`.
-The per-show stats are already computed and saved in `band_age_summary.csv` -- the
-clustering script could read that CSV and join on show name, rather than re-querying.
+| Feature | Dimension |
+|---|---|
+| `avg_best_year` | Era center -- when the music is from |
+| `exclusive_artist_pct` | Show identity -- how much of the artist roster appears nowhere else |
+| `era_continuity_mean_gap` | Era mixing -- avg year gap between consecutive plays within a day |
+| `era_spread` | Era breadth -- std dev of best_year; how wide the era window is |
+| `rotation_depth` | Repeat cycle -- avg plays per unique canonical track |
+| `band_age_score` | Career maturity -- composite: z-scored median + IQR of band_age, averaged |
 
-**Considerations before implementing:**
-- Coverage varies by show. A show with only 40% MB-covered plays should probably not
-  contribute its band_age feature, or should be down-weighted. The summary CSV
-  includes `coverage_pct` and `mb_pct` -- set a minimum threshold (suggest 70% MB)
-  before including the feature.
-- Segmented shows (`SEGMENT_SHOWS`) appear as `<name> *` in the summary CSV. The
-  clustering script uses plain show names internally. Either strip the asterisk suffix
-  when joining, or align the label convention.
-- Decide whether to use `median_band_age` (more robust to outliers) or `mean_band_age`.
-  Given the spread in the boxplot, median is probably the right call.
-- Normalise before including in the combined distance matrix (same z-score approach as
-  the other scalar features).
+**Removed and why:**
+- `unique_artists_per_hour` -- airtime-contaminated (species-area problem; small shows score
+  artificially high just from having fewer total hours)
+- `artist_entropy` -- flat for 9/11 shows; the two outliers (90s at Night, This Just In)
+  were already caught by era_spread and other features
+- `freshness_pct` -- redundant with avg_best_year once era_spread is in the model
+
+**Key clustering result:** k=3 cut gap improved from 1.002 (original) to 2.798.
+Sunday Mornings Over Easy correctly re-classified to the weekday core (was held in the
+specialty cluster by UAPH contamination). Cluster assignments: Cluster 1 = 10@10 shows +
+90s at Night; Cluster 2 = weekday rotation + Sunday Mornings; Cluster 3 = This Just In.
+
+---
+
+## Future: tune repertoire metric (TOP_ARTISTS, TOP_TRACKS)
+
+`show_clustering.py` hardcodes `TOP_ARTISTS = 10` and `TOP_TRACKS = 20` for the
+repertoire cosine similarity pass. These were chosen arbitrarily at v1.0.
+
+Questions to investigate:
+- Does widening (e.g., top-15 artists + top-30 tracks) change cluster assignments in
+  the repertoire and combined passes, or is the result stable?
+- Does narrowing (top-5 + top-10) sharpen or blur show identities?
+- Is there a threshold where the combined pass starts disagreeing with the scalar pass?
+
+Approach: run the repertoire pass with different TOP_N values and compare the similarity
+matrix and cluster assignments. Scalar pass is unaffected.
 
 ---
 
@@ -59,11 +76,11 @@ real wrong-version catches sort to the top, predictable false-positive clusters 
 below them. A human review pass should:
 
 1. **Actionable at the top (score < 30):**
-   - canonical_id=2279: Roger Daltrey / Behind Blue Eyes → primary=The Chieftains (score 8)
+   - canonical_id=2279: Roger Daltrey / Behind Blue Eyes -> primary=The Chieftains (score 8)
      -- Chieftains covered it; wrong version stored. Needs override.
-   - canonical_id=2087: Lo Fidelity Allstars / Battle Flag → primary=Pigeonhed (score 20)
+   - canonical_id=2087: Lo Fidelity Allstars / Battle Flag -> primary=Pigeonhed (score 20)
      -- Pigeonhed was the collab vocalist; Spotify credited them first. Needs override.
-   - canonical_id=2674: O.A.R. & Robert Randolph... / Fool In The Rain → primary=O.A.R. (score 13)
+   - canonical_id=2674: O.A.R. & Robert Randolph... / Fool In The Rain -> primary=O.A.R. (score 13)
      -- Fool In The Rain is a Led Zeppelin song. Check whether this is an OAR cover or
         a false low score because display_artist includes extra band names.
 
@@ -83,51 +100,16 @@ below them. A human review pass should:
 
 ---
 
-## What was done in recent sessions
+## What was done this session
 
-### Primary Artist Mismatch Report (this session)
-- `analytics/primary_artist_mismatch.py` -- new module; generates
-  `quality_checks/primary_artist_mismatch.csv` at end of every `analyze` run
-- `rs_main.py` -- wired in `run_primary_artist_mismatch()` to the analyze block
-- Approach: `normalize_artist()` both sides, score with `token_sort_ratio` (not
-  `token_set_ratio`), flag below threshold=75. 90 mismatches on first run.
-
-### band_age quality reports (previous session)
-- `analytics/band_age.py` -- two quality CSVs added:
-  - `quality_checks/band_age_negative.csv` (band_age < -2)
-  - `quality_checks/band_age_extreme.csv` (band_age > 50)
-- These reports surfaced the wrong-version catches that motivated the mismatch report.
-
-### Data corrections (previous session)
-- **Spoon - Wild (canonical_id=1367):** Cleared false `mb_title_artist_year=1990`.
-- **Rob Thomas - 3 Am (canonical_id=1773):** Cleared false `mb_isrc_year=1994`.
-- **Band Of Gypsys - Them Changes (canonical_id=71):** Set NO_MATCH + manual_year_override=1970.
-- **Aerosmith - Walk This Way (canonical_id=1818):** Override applied + pipeline run completed.
-- **The La's - There She Goes (canonical_id=803):** Override applied + pipeline run completed.
-- **CYRIL** in canonical_artists: still has its own row from the wrong La's match --
-  not explicitly closed; will detach from active tracks now that the La's override is resolved.
-
-### Root cause taxonomy (three distinct failure modes)
-1. **Wrong version** (collab/cover): artist scoring uses max over all credited artists,
-   so the wrong version scores perfectly. Now caught by primary_artist_mismatch.csv.
-2. **MB ISRC returns wrong year**: MB associates an ISRC with a different recording
-   (Rob Thomas case). Affects best_year only.
-3. **MB title/artist false match**: Common song titles match different artists in MB
-   text search (Spoon "Wild" case). Affects best_year only.
-
----
-
-## Files to commit (uncommitted as of this session)
-
-- `analytics/primary_artist_mismatch.py` -- new
-- `analytics/outputs/quality_checks/primary_artist_mismatch.csv` -- new, git-tracked
-- `rs_main.py` -- wired in mismatch report
-- `analytics/band_age.py` -- quality reports added (from previous session)
-- `analytics/outputs/quality_checks/band_age_negative.csv` -- new (previous session)
-- `analytics/outputs/quality_checks/band_age_extreme.csv` -- new (previous session)
-- `scraper/config.py` -- has unstaged changes from before previous session (check diff first)
-
-Suggested commit grouping:
-- Commit 1: `analytics/band_age.py` + `band_age_negative.csv` + `band_age_extreme.csv`
-- Commit 2: `analytics/primary_artist_mismatch.py` + `primary_artist_mismatch.csv` + `rs_main.py`
-- Commit 3: `scraper/config.py` separately (verify diff first)
+### Show clustering scalar feature overhaul (v1.7.3)
+- Diagnosed UAPH as airtime-contaminated (species-area problem) and artist_entropy as
+  near-flat for 9/11 shows; both dropped.
+- Diagnosed freshness_pct as redundant with avg_best_year + era_spread; dropped.
+- Added era_spread (std dev of best_year): separates 90s at Night (3.7), This Just In
+  (8.4), 10@10 (16.7), main rotation (19-21) without entropy.
+- Added rotation_depth (plays per unique canonical track): captures repeat-cycle tightness.
+  Peak Music (4.84) and This Just In (3.42) highest for different reasons.
+- Replaced median_band_age with band_age_score composite (z-score median + IQR averaged).
+- segment_breakers.csv: The La's "There She Goes" correctly dropped after last session's
+  override resolved the wrong-version match.

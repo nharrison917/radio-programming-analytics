@@ -8,6 +8,48 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.3] - 2026-04-16
+
+Show clustering scalar feature overhaul.
+
+### Changed
+- `analytics/show_clustering.py`: scalar feature set rebuilt from 7 features to 6,
+  replacing noisy/redundant features with two new orthogonal dimensions.
+  - **Removed `unique_artists_per_hour`**: contaminated by total broadcast hours
+    (species-area problem -- smaller shows score artificially high regardless of
+    programming style).
+  - **Removed `artist_entropy`**: near-flat for 9/11 shows; the two outliers
+    (90s at Night, This Just In) are already distinguished by `era_spread` and
+    other features. Not pulling its weight.
+  - **Removed `freshness_pct`**: redundant with `avg_best_year` once `era_spread`
+    is in the model.
+  - **Added `era_spread`** (std dev of `best_year`): captures how wide a show's
+    era window is, independent of where the center sits. Clearly separates
+    90s at Night (3.7), This Just In (8.4), 10@10 shows (16.7), and the main
+    rotation block (19-21). Solves the entropy problem for 90s at Night without
+    the flatness issue.
+  - **Added `rotation_depth`** (avg plays per unique canonical track): captures
+    repeat-cycle tightness -- a genuine station programming choice, not a Spotify
+    data artifact. Peak Music (4.84) and This Just In (3.42) highest.
+  - **Replaced `median_band_age` with `band_age_score`**: composite of z-scored
+    median and IQR, averaged into one feature. One vote in the distance matrix,
+    but informed by both center and spread of the career-maturity distribution.
+  - Pass 4 print block made dynamic (was hardcoded "6 dimensions / x3 weight").
+- `analytics/outputs/quality_checks/segment_breakers.csv`: The La's "There She Goes"
+  correctly removed after the v1.7.1 override resolved the wrong-version match.
+
+### Result
+- k=3 cut gap (Ward linkage distance): 1.002 -> 2.798. Three-cluster structure is
+  substantially more cleanly supported by the data.
+- Sunday Mornings Over Easy correctly re-classified from the specialty cluster
+  (Cluster 1) to the weekday core (Cluster 2). Was held in the wrong cluster by
+  UAPH contamination -- its high unique-artists-per-hour reflected lower airtime,
+  not distinctive programming.
+- 90s at Night cluster placement now driven by era_spread (3.7, tightest outside
+  This Just In) rather than entropy.
+
+---
+
 ## [1.7.2] - 2026-04-16
 
 Primary Artist Mismatch quality report.
