@@ -74,6 +74,7 @@ def main():
         from analytics.wednesday_freshness import run_wednesday_freshness
         from analytics.segment_breakers import run_segment_breakers
         from analytics.band_age import run_band_age
+        from analytics.primary_artist_mismatch import run_primary_artist_mismatch
 
         run_analysis()
         run_era_continuity()
@@ -83,6 +84,7 @@ def main():
         run_wednesday_freshness()
         run_segment_breakers()
         run_band_age()
+        run_primary_artist_mismatch()
 
     elif args.mode == "cluster":
         from analytics.show_clustering import run_show_clustering

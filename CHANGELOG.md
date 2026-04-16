@@ -8,6 +8,31 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.2] - 2026-04-16
+
+Primary Artist Mismatch quality report.
+
+### Added
+- `analytics/primary_artist_mismatch.py`: new quality report identifying SUCCESS-status
+  tracks where `display_artist` does not closely match `spotify_primary_artist_name`.
+  Catches collab and cover-version wrong matches that are invisible to the existing
+  `enrichment_attempt_3_4.csv` report -- those tracks score 100/100 in enrichment
+  (the searched artist appears somewhere in the Spotify credits) but store a different
+  act as primary artist.
+  - Applies `normalize_artist()` to both sides before scoring.
+  - Uses RapidFuzz `token_sort_ratio` (not `token_set_ratio` -- subset matching would
+    score "Band Of Gypsys" vs "The Return Of The Band Of Gypsys" as 100).
+  - Threshold: `PRIMARY_MISMATCH_THRESHOLD = 75` (tunable at top of file).
+  - Output: `analytics/outputs/quality_checks/primary_artist_mismatch.csv`
+    Columns: `canonical_id`, `display_artist`, `display_title`,
+    `spotify_primary_artist_name`, `primary_artist_score`, `spotify_artist_score`,
+    `play_count`, `spotify_match_attempt`, `spotify_album_release_year`.
+    Sorted: score ASC (worst first), then play_count DESC.
+  - First run: 90 mismatches at threshold=75 across 2,888 SUCCESS tracks.
+- `rs_main.py`: `run_primary_artist_mismatch()` wired into the `analyze` pipeline.
+
+---
+
 ## [1.7.1] - 2026-04-16
 
 band_age quality reports, Spotify fallback for career-start year, and wrong-match
