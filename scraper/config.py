@@ -55,7 +55,7 @@ LOW_PLAY_SUPPRESSED_TITLE_SIGNALS = [
 
 # --- Spotify Artist Enrichment ---
 
-ARTIST_ENRICHMENT_BATCH_SIZE = 45   # Artists to attempt per weekly run
+ARTIST_ENRICHMENT_BATCH_SIZE = 50   # Artists to attempt per weekly run
 ARTIST_ENRICHMENT_CHUNK_SIZE = 3    # Artists per chunk before cooldown
 ARTIST_ENRICHMENT_COOLDOWN_SECONDS = 25  # Pause between chunks (seconds)
 ARTIST_ENRICHMENT_REQUEST_DELAY = 3      # Pause between API page requests (seconds)
