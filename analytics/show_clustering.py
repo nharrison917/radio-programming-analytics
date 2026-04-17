@@ -48,8 +48,6 @@ CLUSTER_DIR = OUTPUT_DIR / "clustering"
 CLUSTER_DIR.mkdir(exist_ok=True)
 
 REPERTOIRE_DAYS = 60
-TOP_ARTISTS = 10
-TOP_TRACKS = 20
 ERA_CONTINUITY_THRESHOLD = 3
 ERA_BREAK_THRESHOLD = 10
 FRESHNESS_YEARS = 5
@@ -241,57 +239,61 @@ def compute_scalar_features(df):
 # Repertoire similarity
 # ---------------------------------------------------------------------------
 
-def compute_repertoire_similarity(days=REPERTOIRE_DAYS):
+def compute_repertoire_similarity(df, days=REPERTOIRE_DAYS):
     """
-    Binary cosine similarity: top-N artists + top-M tracks per show
-    over the last `days` days.
+    TF-IDF cosine similarity on full artist and track vocabulary.
+
+    df must already have SEGMENT_SHOWS replaced with in-band tracks
+    (done in run_show_clustering before this is called). The `days`
+    window is applied here to restrict to recent programming only.
+
+    TF  = plays_of_item_in_show / total_plays_in_show
+    IDF = log(n_shows / shows_that_play_this_item)
+
+    Ubiquitous station-rotation artists (appearing in all shows) get
+    IDF near zero and contribute almost nothing to similarity. Show-
+    specific artists carry high IDF and dominate the signal.
 
     Returns (shows list, similarity DataFrame).
     """
-    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    cutoff = datetime.now() - timedelta(days=days)
+    window = df[df["play_ts"] >= cutoff].copy()
 
-    conn = _get_conn()
-    artists_df = pd.read_sql_query("""
-        SELECT p.station_show, c.norm_artist, COUNT(*) AS plays
-        FROM plays p
-        JOIN plays_to_canonical pc ON p.id = pc.play_id
-        JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
-        WHERE p.is_music_show = 1 AND p.play_ts >= ?
-        GROUP BY p.station_show, c.norm_artist
-    """, conn, params=[cutoff])
+    shows = sorted(window["station_show"].unique())
+    n_shows = len(shows)
 
-    tracks_df = pd.read_sql_query("""
-        SELECT p.station_show, c.canonical_id, COUNT(*) AS plays
-        FROM plays p
-        JOIN plays_to_canonical pc ON p.id = pc.play_id
-        JOIN canonical_tracks c ON pc.canonical_id = c.canonical_id
-        WHERE p.is_music_show = 1 AND p.play_ts >= ?
-        GROUP BY p.station_show, c.canonical_id
-    """, conn, params=[cutoff])
-    conn.close()
+    # --- Artist TF-IDF ---
+    show_artist = (
+        window.groupby(["station_show", "norm_artist"])
+        .size()
+        .reset_index(name="plays")
+        .pivot_table(index="station_show", columns="norm_artist",
+                     values="plays", aggfunc="sum", fill_value=0)
+        .reindex(shows, fill_value=0)
+    )
+    totals_a = show_artist.values.sum(axis=1, keepdims=True)
+    tf_a = show_artist.values / np.where(totals_a == 0, 1, totals_a)
+    df_a = (show_artist.values > 0).sum(axis=0)
+    idf_a = np.log(n_shows / np.where(df_a == 0, 1, df_a))
+    tfidf_a = tf_a * idf_a[None, :]
 
-    shows = sorted(artists_df["station_show"].unique())
+    # --- Track TF-IDF ---
+    show_track = (
+        window.groupby(["station_show", "canonical_id"])
+        .size()
+        .reset_index(name="plays")
+        .pivot_table(index="station_show", columns="canonical_id",
+                     values="plays", aggfunc="sum", fill_value=0)
+        .reindex(shows, fill_value=0)
+    )
+    totals_t = show_track.values.sum(axis=1, keepdims=True)
+    tf_t = show_track.values / np.where(totals_t == 0, 1, totals_t)
+    df_t = (show_track.values > 0).sum(axis=0)
+    idf_t = np.log(n_shows / np.where(df_t == 0, 1, df_t))
+    tfidf_t = tf_t * idf_t[None, :]
 
-    top_artists = {}
-    top_tracks = {}
-    for show in shows:
-        ag = artists_df[artists_df["station_show"] == show]
-        tg = tracks_df[tracks_df["station_show"] == show]
-        top_artists[show] = set(ag.nlargest(TOP_ARTISTS, "plays")["norm_artist"])
-        top_tracks[show] = set(tg.nlargest(TOP_TRACKS, "plays")["canonical_id"])
-
-    all_artists = sorted(set().union(*top_artists.values()))
-    all_tracks = sorted(set().union(*top_tracks.values()))
-    vocab = [("a", x) for x in all_artists] + [("t", x) for x in all_tracks]
-
-    mat = np.zeros((len(shows), len(vocab)), dtype=float)
-    for i, show in enumerate(shows):
-        for j, (kind, item) in enumerate(vocab):
-            if kind == "a" and item in top_artists[show]:
-                mat[i, j] = 1.0
-            elif kind == "t" and item in top_tracks[show]:
-                mat[i, j] = 1.0
-
+    # --- Cosine similarity on concatenated TF-IDF vector ---
+    mat = np.hstack([tfidf_a, tfidf_t])
     norms = np.linalg.norm(mat, axis=1, keepdims=True)
     mat_norm = mat / np.where(norms == 0, 1, norms)
     sim = mat_norm @ mat_norm.T
@@ -413,7 +415,7 @@ def _similarity_heatmap(sim_df, out_path):
         colorbar=dict(title="Cosine sim"),
     ))
     fig.update_layout(
-        title=dict(text="Repertoire Cosine Similarity (top-10 artists + top-20 tracks, last 60 days)",
+        title=dict(text=f"Repertoire Cosine Similarity (TF-IDF, last {REPERTOIRE_DAYS} days)",
                    font=dict(size=14)),
         plot_bgcolor="white",
         paper_bgcolor="white",
@@ -507,10 +509,10 @@ def run_show_clustering():
     # PASS 2: Repertoire similarity
     # -----------------------------------------------------------------------
     print()
-    print("--- Pass 2: Repertoire Similarity ---")
-    shows_rep, sim_df = compute_repertoire_similarity(days=REPERTOIRE_DAYS)
+    print("--- Pass 2: Repertoire Similarity (TF-IDF) ---")
+    shows_rep, sim_df = compute_repertoire_similarity(df, days=REPERTOIRE_DAYS)
     print(f"  Shows: {len(shows_rep)}")
-    print(f"  Vocab: top-{TOP_ARTISTS} artists + top-{TOP_TRACKS} tracks, last {REPERTOIRE_DAYS} days")
+    print(f"  Vocab: full artist + track vocabulary, TF-IDF weighted, last {REPERTOIRE_DAYS} days")
     print()
 
     print("  Similarity matrix (excerpt -- top pairs):")
@@ -531,7 +533,7 @@ def run_show_clustering():
     display_rep = [_display_label(s) for s in shows_rep]
     _dendrogram(
         dist_cond_rep, display_rep,
-        f"Show Clustering -- Repertoire (top-{TOP_ARTISTS} artists + top-{TOP_TRACKS} tracks, last {REPERTOIRE_DAYS} days)",
+        f"Show Clustering -- Repertoire (TF-IDF, last {REPERTOIRE_DAYS} days)",
         CLUSTER_DIR / "cluster_repertoire_dendrogram.html",
         k_hint=3,
     )

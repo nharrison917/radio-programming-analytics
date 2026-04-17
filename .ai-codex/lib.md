@@ -188,6 +188,14 @@ measure_clustering.py
 spotify_status_helper.py
   fn update_spotify_status
   fn bulk_update_status
+tfidf_repertoire_compare.py
+  fn load_data
+  fn cosine_sim
+  fn binary_topn
+  fn tfidf_full
+  fn top_pairs
+  fn delta_table
+  fn main
 
 ## scripts/
 pipeline_status.py

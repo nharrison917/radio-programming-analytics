@@ -53,22 +53,6 @@ specialty cluster by UAPH contamination). Cluster assignments: Cluster 1 = 10@10
 
 ---
 
-## Future: tune repertoire metric (TOP_ARTISTS, TOP_TRACKS)
-
-`show_clustering.py` hardcodes `TOP_ARTISTS = 10` and `TOP_TRACKS = 20` for the
-repertoire cosine similarity pass. These were chosen arbitrarily at v1.0.
-
-Questions to investigate:
-- Does widening (e.g., top-15 artists + top-30 tracks) change cluster assignments in
-  the repertoire and combined passes, or is the result stable?
-- Does narrowing (top-5 + top-10) sharpen or blur show identities?
-- Is there a threshold where the combined pass starts disagreeing with the scalar pass?
-
-Approach: run the repertoire pass with different TOP_N values and compare the similarity
-matrix and cluster assignments. Scalar pass is unaffected.
-
----
-
 ## Pending review: primary_artist_mismatch.csv output
 
 First run produced 90 mismatches at threshold=75. The report is working correctly --
@@ -113,3 +97,17 @@ below them. A human review pass should:
 - Replaced median_band_age with band_age_score composite (z-score median + IQR averaged).
 - segment_breakers.csv: The La's "There She Goes" correctly dropped after last session's
   override resolved the wrong-version match.
+
+### Repertoire metric: replaced binary top-N with TF-IDF (v1.7.4)
+- Investigated per-show artist/track play counts to find where the "tail" begins for
+  each show; determined widening TOP_N would add noise for shallow-rotation shows.
+- Identified the conceptual flaw in binary top-N: ubiquitous rotation artists (REM,
+  Oasis, RHCP, Beck, Black Crowes -- in all 11 shows) had equal weight to
+  show-exclusive artists, inflating cross-cluster similarity.
+- Replaced with TF-IDF cosine similarity on full vocabulary. IDF zeroes out the shared
+  rotation backbone; TF weights by relative play frequency within a show.
+- Fixed a latent bug in the process: previous `compute_repertoire_similarity()` re-queried
+  the DB with raw plays, so SEGMENT_SHOWS were not using in-band tracks. Now accepts the
+  already-segmented `df` from the caller.
+- Key result: 10@10 pair 0.700 -> 0.928; 10@10 vs main rotation 0.40-0.47 -> 0.07-0.10.
+  Cluster structure unchanged.

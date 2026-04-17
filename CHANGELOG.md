@@ -8,6 +8,37 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.4] - 2026-04-16
+
+Repertoire similarity: replaced binary top-N with TF-IDF on full vocabulary.
+
+### Changed
+- `analytics/show_clustering.py`: `compute_repertoire_similarity()` replaced binary
+  cosine similarity (top-10 artists + top-20 tracks) with TF-IDF cosine similarity
+  over the full artist and track vocabulary.
+  - **Why:** Binary top-N had two compounding flaws. First, ubiquitous station-rotation
+    artists (REM, Oasis, RHCP, Beck, Black Crowes -- present in all 11 shows) had equal
+    weight to show-exclusive artists, inflating cross-cluster similarity. Second, the
+    hard top-N cutoff was arbitrary; for shallow-rotation shows (10@10 Weekend Replay,
+    Sunday Mornings) track counts at rank 5+ were tied at 2-4 plays -- effectively
+    random. TF-IDF resolves both: TF weights by how much a show plays an item; IDF
+    weights down artists/tracks that appear across many shows, zeroing out the shared
+    rotation backbone.
+  - `TOP_ARTISTS` and `TOP_TRACKS` constants removed.
+  - Function now accepts `df` (already segmented by the caller) instead of re-querying
+    the DB with raw plays, ensuring SEGMENT_SHOWS use in-band tracks consistently with
+    all other passes.
+  - Heatmap and dendrogram titles updated.
+
+### Result
+- 10@10 / 10@10 Weekend Replay pair: `0.700 -> 0.928`. Binary underestimated their
+  shared era-specific identity; TF-IDF amplifies show-exclusive artists with high IDF.
+- 10@10 shows vs main rotation block: `0.40-0.47 -> 0.07-0.10`. Shared rotation
+  artists (REM, Noah Kahan) correctly downweighted by IDF near zero.
+- Cluster structure unchanged: k=3 groupings stable across all passes.
+
+---
+
 ## [1.7.3] - 2026-04-16
 
 Show clustering scalar feature overhaul.

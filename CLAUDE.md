@@ -176,10 +176,11 @@ Configured in `config.py`:
 
 ## What's in scope right now (as of 2026-04-16)
 
-- **Show clustering scalar features (v1.7.3):** six features -- `avg_best_year`,
+- **Show clustering (v1.7.4):** scalar pass uses six features -- `avg_best_year`,
   `exclusive_artist_pct`, `era_continuity_mean_gap`, `era_spread`, `rotation_depth`,
-  `band_age_score` (composite). Removed: `artist_entropy`, `unique_artists_per_hour`,
-  `freshness_pct`. See PLAN.md for rationale and current cluster assignments.
+  `band_age_score` (composite). Repertoire pass uses TF-IDF cosine similarity on full
+  artist + track vocabulary (replaced binary top-10/top-20). See PLAN.md for cluster
+  assignments and rationale.
 - MB artist enrichment: 99.2% coverage. Remaining open items in `mb_artist_missing.csv`
   and `mb_artist_large_delta.csv`. Known wrong-entity cases: Monotones, Tom Hamilton.
 - band_age quality reports: `band_age_negative.csv` (band_age < -2) and
