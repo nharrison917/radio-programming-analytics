@@ -27,7 +27,7 @@ Six features covering distinct dimensions of programming structure:
 
 | Feature | What it captures |
 |---|---|
-| `avg_best_year` | Era center -- when the music is from |
+| `median_best_year` | Era center -- when the music is from (median; robust to outlier plays) |
 | `exclusive_artist_pct` | Show identity -- share of the artist roster that appears on no other show |
 | `era_continuity_mean_gap` | Era mixing -- average year gap between consecutive plays within a broadcast day |
 | `era_spread` | Era breadth -- std dev of `best_year`; how wide the era window is |
@@ -42,7 +42,7 @@ Three features were diagnosed and removed from the original model:
 |---|---|
 | `unique_artists_per_hour` | Airtime-contaminated. Shows with fewer broadcast hours score artificially high because they log fewer total plays -- a species-area effect. The metric measures show length as much as curation breadth. |
 | `artist_entropy` | Near-flat for 9 of 11 shows. The two outliers it captured are already separated by `era_spread`. |
-| `freshness_pct` | Redundant once `avg_best_year` and `era_spread` are both in the model. |
+| `freshness_pct` | Redundant once `median_best_year` and `era_spread` are both in the model. |
 
 The UAPH removal had a directly measurable consequence. With it in the model, Sunday
 Mornings Over Easy was held in the specialty outlier cluster alongside 90s at Night and
@@ -134,7 +134,7 @@ scores -1.26 (established acts recorded decades before). Sunday Mornings Over Ea
 The most analytically interesting reassignment. Sunday Mornings programs folk, acoustic,
 and Americana -- Grateful Dead, Bob Dylan, Norah Jones, Iron and Wine -- a clearly distinct
 format from the contemporary-rock weekday rotation. But the scalar features place it firmly
-in the weekday core. Its `avg_best_year` (2002), `era_spread` (20.75), and
+in the weekday core. Its `median_best_year` (2007), `era_spread` (20.75), and
 `era_continuity_mean_gap` (26.71) are indistinguishable from Coach or Pam Landry.
 
 The dimension that separates it is `exclusive_artist_pct`: 28.2%, vs. 0.7-4.4% for the

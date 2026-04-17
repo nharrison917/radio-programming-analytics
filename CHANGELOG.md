@@ -8,6 +8,20 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.7] - 2026-04-17
+
+Switch `avg_best_year` to median in show clustering scalar features.
+
+### Changed
+- `analytics/show_clustering.py`: `avg_best_year` feature renamed to
+  `median_best_year`; aggregation changed from `.mean()` to `.median()`.
+  Median is more robust to outlier plays (e.g. the 2020+ tracks in 90's at Night
+  that drag the mean upward). Cluster assignments unchanged -- Ward linkage is
+  stable to the 2-5 year per-show shifts.
+- `ANALYSIS.md`, `CLAUDE.md`: references updated to `median_best_year`.
+
+---
+
 ## [1.7.6] - 2026-04-17
 
 Documentation and presentation overhaul.

@@ -128,17 +128,17 @@ def _load_plays():
 def compute_scalar_features(df):
     """
     Returns a DataFrame with one row per show and columns:
-      avg_best_year, exclusive_artist_pct, era_continuity_mean_gap,
+      median_best_year, exclusive_artist_pct, era_continuity_mean_gap,
       era_spread, rotation_depth, band_age_score
     """
     shows = sorted(df["station_show"].unique())
 
-    # -- avg_best_year --
+    # -- median_best_year --
     avg_year = (
         df.dropna(subset=["best_year"])
         .groupby("station_show")["best_year"]
-        .mean()
-        .rename("avg_best_year")
+        .median()
+        .rename("median_best_year")
     )
 
     # -- exclusive_artist_pct --
@@ -223,7 +223,7 @@ def compute_scalar_features(df):
         band_age_score = pd.Series(dtype=float, name="band_age_score")
         print("  WARNING: band_age_summary.csv not found -- band_age_score excluded")
 
-    # -- era_spread (std dev of best_year: era breadth vs avg_best_year's center) --
+    # -- era_spread (std dev of best_year: era breadth vs median_best_year's center) --
     era_spread = (
         df.dropna(subset=["best_year"])
         .groupby("station_show")["best_year"]
@@ -238,7 +238,7 @@ def compute_scalar_features(df):
 
     # -- Assemble --
     features = pd.DataFrame({
-        "avg_best_year": avg_year,
+        "median_best_year": avg_year,
         "exclusive_artist_pct": excl_pct,
         "era_continuity_mean_gap": era_gap,
         "era_spread": era_spread,

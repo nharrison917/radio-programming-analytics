@@ -177,7 +177,7 @@ Configured in `config.py`:
 
 ## What's in scope right now (as of 2026-04-16)
 
-- **Show clustering (v1.7.4):** scalar pass uses six features -- `avg_best_year`,
+- **Show clustering (v1.7.4):** scalar pass uses six features -- `median_best_year`,
   `exclusive_artist_pct`, `era_continuity_mean_gap`, `era_spread`, `rotation_depth`,
   `band_age_score` (composite). Repertoire pass uses TF-IDF cosine similarity on full
   artist + track vocabulary (replaced binary top-10/top-20). See PLAN.md for cluster
@@ -215,7 +215,7 @@ distinct from the surrounding plays. For 10@10, bleed tracks from the station's
 regular rotation surround a single-era themed segment. For "This Just In", a new-music
 main block is followed by a 1-2 track intentional throwback tail at :50-:59. In both
 cases the surrounding/tail tracks are noise for show-identity analytics and distort
-every scalar feature (avg_best_year, era_spread, era_continuity_mean_gap, etc.).
+every scalar feature (median_best_year, era_spread, era_continuity_mean_gap, etc.).
 
 Per-show segmentation parameters live in `SEGMENT_PARAMS` in `era_continuity.py`.
 All three current shows use the default (band=3yr, min_inband=8, consec_oob=2).
