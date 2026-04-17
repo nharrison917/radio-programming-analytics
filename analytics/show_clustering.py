@@ -57,6 +57,21 @@ def _display_label(show):
     return f"{show} *" if show in SEGMENT_SHOWS else show
 
 
+_LABEL_ABBREV = {
+    "10 @ 10": "10@10",
+    "10 @ 10 Weekend Replay": "10@10 Replay",
+    "This Just In with Meg White": "This Just In",
+    "Sunday Mornings Over Easy": "Sunday Mornings",
+}
+
+
+def _shorten_label(label):
+    """Abbreviate long show names for chart display. Preserves the ' *' suffix."""
+    suffix = " *" if label.endswith(" *") else ""
+    base = label[:-2] if suffix else label
+    return _LABEL_ABBREV.get(base, base) + suffix
+
+
 # ---------------------------------------------------------------------------
 # Data loading helpers
 # ---------------------------------------------------------------------------
@@ -316,6 +331,8 @@ def _dendrogram(dist_condensed, labels, title, out_path, k_hint=3):
     Z = linkage(dist_condensed, method="ward")
     cluster_ids = fcluster(Z, t=k_hint, criterion="maxclust")
 
+    labels = [_shorten_label(l) for l in labels]
+
     label_colors = {
         label: CLUSTER_COLORS[(cluster_ids[i] - 1) % len(CLUSTER_COLORS)]
         for i, label in enumerate(labels)
@@ -338,17 +355,17 @@ def _dendrogram(dist_condensed, labels, title, out_path, k_hint=3):
         plot_bgcolor="white",
         paper_bgcolor="white",
         height=500,
-        margin=dict(l=40, r=40, t=60, b=120),
+        margin=dict(l=40, r=80, t=60, b=120),
         annotations=[dict(
             text="* = density-segmented pairs",
             xref="paper", yref="paper",
-            x=0.0, y=-0.08,
+            x=0.01, y=1.08,
             showarrow=False,
             font=dict(size=11, color="#666666"),
             xanchor="left",
         )],
     )
-    fig.update_xaxes(showgrid=False)
+    fig.update_xaxes(showgrid=False, automargin=True)
     fig.update_yaxes(title="Ward linkage distance", showgrid=True, gridcolor="#eeeeee")
     fig.write_html(str(out_path))
     print(f"Saved: {out_path}")
@@ -363,17 +380,18 @@ def _scalar_heatmap(features_scaled, features_raw, shows, out_path):
 
     # shows may contain display labels (e.g. "10 @ 10 *") -- use features_raw index for lookup
     data_shows = list(features_raw.index)
+    short_shows = [_shorten_label(s) for s in shows]
     hover = []
     for fi, fname in enumerate(feature_names):
         row = []
-        for label, orig in zip(shows, data_shows):
+        for label, orig in zip(short_shows, data_shows):
             raw_val = features_raw.loc[orig, fname]
             row.append(f"{label}<br>{fname}: {raw_val:.3f}")
         hover.append(row)
 
     fig = go.Figure(go.Heatmap(
         z=z,
-        x=shows,
+        x=short_shows,
         y=feature_names,
         colorscale="RdBu",
         zmid=0,
@@ -386,12 +404,12 @@ def _scalar_heatmap(features_scaled, features_raw, shows, out_path):
         plot_bgcolor="white",
         paper_bgcolor="white",
         height=420,
-        margin=dict(l=200, r=40, t=60, b=120),
-        xaxis=dict(tickangle=-35),
+        margin=dict(l=200, r=80, t=60, b=120),
+        xaxis=dict(tickangle=-35, automargin=True),
         annotations=[dict(
             text="* = density-segmented pairs",
             xref="paper", yref="paper",
-            x=0.0, y=-0.08,
+            x=0.01, y=1.08,
             showarrow=False,
             font=dict(size=11, color="#666666"),
             xanchor="left",
@@ -402,15 +420,15 @@ def _scalar_heatmap(features_scaled, features_raw, shows, out_path):
 
 
 def _similarity_heatmap(sim_df, out_path):
-    shows = list(sim_df.index)
+    short_shows = [_shorten_label(s) for s in sim_df.index]
     fig = go.Figure(go.Heatmap(
         z=sim_df.values.tolist(),
-        x=shows,
-        y=shows,
+        x=short_shows,
+        y=short_shows,
         colorscale="Blues",
         zmin=0, zmax=1,
-        text=[[f"{sim_df.index[i]} vs {sim_df.columns[j]}<br>sim: {sim_df.values[i,j]:.2f}"
-               for j in range(len(shows))] for i in range(len(shows))],
+        text=[[f"{short_shows[i]} vs {short_shows[j]}<br>sim: {sim_df.values[i,j]:.2f}"
+               for j in range(len(short_shows))] for i in range(len(short_shows))],
         hoverinfo="text",
         colorbar=dict(title="Cosine sim"),
     ))
@@ -420,12 +438,12 @@ def _similarity_heatmap(sim_df, out_path):
         plot_bgcolor="white",
         paper_bgcolor="white",
         height=520,
-        margin=dict(l=180, r=40, t=60, b=160),
-        xaxis=dict(tickangle=-40),
+        margin=dict(l=180, r=80, t=60, b=160),
+        xaxis=dict(tickangle=-40, automargin=True),
         annotations=[dict(
             text="* = density-segmented pairs",
             xref="paper", yref="paper",
-            x=0.0, y=-0.08,
+            x=0.01, y=1.08,
             showarrow=False,
             font=dict(size=11, color="#666666"),
             xanchor="left",

@@ -10,6 +10,8 @@ analytics/
     quality_checks/
     rotation/
 backups/
+docs/  Documentation
+  images/
 logs/
 scraper/
 scratch/

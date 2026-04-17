@@ -4,8 +4,8 @@
 
 An end-to-end data pipeline scraping radio playlist data from 107.1 The Peak,
 enriching tracks via the Spotify Web API, and producing structured programming
-analytics. Portfolio/learning project. Dataset: 50 days, >14,000 plays, ~98.7%
-Spotify match rate (as of 2026-03-31).
+analytics. Portfolio/learning project. Dataset: 67 days, >19,000 plays, ~98.4%
+Spotify match rate (as of 2026-04-17).
 
 ## Pipeline stages
 
@@ -33,6 +33,7 @@ Spotify match rate (as of 2026-03-31).
 python rs_main.py scrape      # Daily ingestion (also runs audit)
 python rs_main.py weekly      # Enrichment run
 python rs_main.py analyze     # All analytics + visuals
+python rs_main.py cluster     # Show clustering analysis
 python rs_main.py audit       # Standalone audit
 python rs_main.py enrich-meta # Backfill spotify_isrc + spotify_album_type (~600/day limit)
 python rs_main.py mb-enrich         # MusicBrainz ISRC lookup for compilation/remaster tracks

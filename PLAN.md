@@ -26,33 +26,6 @@ applying or add an `applied_at` column to prevent redundant re-fetches.
 
 ---
 
-## Show clustering: current scalar feature set (as of v1.7.3)
-
-Six features, each covering a distinct dimension:
-
-| Feature | Dimension |
-|---|---|
-| `avg_best_year` | Era center -- when the music is from |
-| `exclusive_artist_pct` | Show identity -- how much of the artist roster appears nowhere else |
-| `era_continuity_mean_gap` | Era mixing -- avg year gap between consecutive plays within a day |
-| `era_spread` | Era breadth -- std dev of best_year; how wide the era window is |
-| `rotation_depth` | Repeat cycle -- avg plays per unique canonical track |
-| `band_age_score` | Career maturity -- composite: z-scored median + IQR of band_age, averaged |
-
-**Removed and why:**
-- `unique_artists_per_hour` -- airtime-contaminated (species-area problem; small shows score
-  artificially high just from having fewer total hours)
-- `artist_entropy` -- flat for 9/11 shows; the two outliers (90s at Night, This Just In)
-  were already caught by era_spread and other features
-- `freshness_pct` -- redundant with avg_best_year once era_spread is in the model
-
-**Key clustering result:** k=3 cut gap improved from 1.002 (original) to 2.798.
-Sunday Mornings Over Easy correctly re-classified to the weekday core (was held in the
-specialty cluster by UAPH contamination). Cluster assignments: Cluster 1 = 10@10 shows +
-90s at Night; Cluster 2 = weekday rotation + Sunday Mornings; Cluster 3 = This Just In.
-
----
-
 ## Pending review: primary_artist_mismatch.csv output
 
 First run produced 90 mismatches at threshold=75. The report is working correctly --
@@ -86,28 +59,18 @@ below them. A human review pass should:
 
 ## What was done this session
 
-### Show clustering scalar feature overhaul (v1.7.3)
-- Diagnosed UAPH as airtime-contaminated (species-area problem) and artist_entropy as
-  near-flat for 9/11 shows; both dropped.
-- Diagnosed freshness_pct as redundant with avg_best_year + era_spread; dropped.
-- Added era_spread (std dev of best_year): separates 90s at Night (3.7), This Just In
-  (8.4), 10@10 (16.7), main rotation (19-21) without entropy.
-- Added rotation_depth (plays per unique canonical track): captures repeat-cycle tightness.
-  Peak Music (4.84) and This Just In (3.42) highest for different reasons.
-- Replaced median_band_age with band_age_score composite (z-score median + IQR averaged).
-- segment_breakers.csv: The La's "There She Goes" correctly dropped after last session's
-  override resolved the wrong-version match.
-
-### Repertoire metric: replaced binary top-N with TF-IDF (v1.7.4)
-- Investigated per-show artist/track play counts to find where the "tail" begins for
-  each show; determined widening TOP_N would add noise for shallow-rotation shows.
-- Identified the conceptual flaw in binary top-N: ubiquitous rotation artists (REM,
-  Oasis, RHCP, Beck, Black Crowes -- in all 11 shows) had equal weight to
-  show-exclusive artists, inflating cross-cluster similarity.
-- Replaced with TF-IDF cosine similarity on full vocabulary. IDF zeroes out the shared
-  rotation backbone; TF weights by relative play frequency within a show.
-- Fixed a latent bug in the process: previous `compute_repertoire_similarity()` re-queried
-  the DB with raw plays, so SEGMENT_SHOWS were not using in-band tracks. Now accepts the
-  already-segmented `df` from the caller.
-- Key result: 10@10 pair 0.700 -> 0.928; 10@10 vs main rotation 0.40-0.47 -> 0.07-0.10.
-  Cluster structure unchanged.
+### Documentation and presentation overhaul (v1.7.6)
+- ANALYSIS.md: rewrote clustering section with current feature set (era_spread,
+  rotation_depth, band_age_score replacing UAPH/entropy/freshness_pct), TF-IDF
+  repertoire method with quantified improvement, updated cluster assignments
+  (Sunday Mornings in weekday core), feature values table from CSV, two supporting images.
+- README.md: refreshed dataset stats to 2026-04-17 (67 days, 19,174 plays, 98.4%,
+  512 MB corrections, 923 artists). Updated clustering description to TF-IDF and named
+  features. Replaced broken density_vs_freshness.png with repertoire heatmap. Fixed
+  misleading "interactive output files" reference. Added cluster and mb-artist-enrich
+  entry points. Added scikit-learn and scipy to tech stack.
+- show_clustering.py: _shorten_label() helper abbreviates long show names across all
+  dendrograms and heatmaps. Annotation moved above chart (y=1.08). automargin=True +
+  r=80 fixes right-side label cutoff.
+- docs/images/: clustering_scalar_dendrogram.png and clustering_repertoire_heatmap.png
+  added as tracked static assets for documentation.

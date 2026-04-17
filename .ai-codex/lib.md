@@ -61,6 +61,7 @@ segment_breakers.py
   fn run_segment_breakers
 show_clustering.py
   fn _display_label
+  fn _shorten_label
   fn _get_conn
   fn _load_plays
   fn compute_scalar_features

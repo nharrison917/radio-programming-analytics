@@ -9,7 +9,7 @@ pipeline. Updated as new analyses are built.
 
 **Script:** `analytics/show_clustering.py`
 **Run:** `python rs_main.py cluster`
-**Outputs:** `analytics/outputs/clustering/cluster_*.html`, `analytics/outputs/clustering/show_clustering_features.csv`
+**Outputs:** `analytics/outputs/clustering/`
 
 ### Question
 
@@ -18,106 +18,152 @@ and if so, along what dimensions?
 
 ### Method
 
-Four clustering passes, each using Ward linkage hierarchical clustering:
+Four clustering passes, each using Ward linkage hierarchical clustering. The clustering
+machinery is standard; the work is in the feature engineering decisions.
 
-**Pass 1 -- Scalar features** (intrinsic show characteristics)
+**Scalar features**
+
+Six features covering distinct dimensions of programming structure:
 
 | Feature | What it captures |
 |---|---|
-| `artist_entropy` | Shannon entropy of artist play distribution -- higher = more even spread |
-| `unique_artists_per_hour` | Distinct artists per broadcast hour -- rotation speed |
-| `avg_best_year` | Mean release year using best available source (MusicBrainz > Spotify) |
-| `freshness_pct` | Share of plays from tracks released in the last 5 years |
-| `exclusive_artist_pct` | Share of a show's artists that appear on no other show |
-| `era_continuity_mean_gap` | Average year-gap between consecutive plays -- era mixing vs. consistency |
+| `avg_best_year` | Era center -- when the music is from |
+| `exclusive_artist_pct` | Show identity -- share of the artist roster that appears on no other show |
+| `era_continuity_mean_gap` | Era mixing -- average year gap between consecutive plays within a broadcast day |
+| `era_spread` | Era breadth -- std dev of `best_year`; how wide the era window is |
+| `rotation_depth` | Repeat cycle -- average plays per unique canonical track over the 60-day window |
+| `band_age_score` | Career maturity -- composite: z-scored median and IQR of band_age, averaged |
 
 All features z-scored before distance calculation. Euclidean distance, Ward linkage.
 
-**Pass 2 -- Repertoire similarity** (what is actually being programmed)
+Three features were diagnosed and removed from the original model:
 
-Binary cosine similarity over a rolling 60-day window. Each show is represented
-as a binary vector: top-10 most-played artists + top-20 most-played tracks = 30
-indicator dimensions per show. Union vocabulary across all shows (153 dimensions
-total). Cosine distance fed directly to Ward linkage.
+| Feature | Why removed |
+|---|---|
+| `unique_artists_per_hour` | Airtime-contaminated. Shows with fewer broadcast hours score artificially high because they log fewer total plays -- a species-area effect. The metric measures show length as much as curation breadth. |
+| `artist_entropy` | Near-flat for 9 of 11 shows. The two outliers it captured are already separated by `era_spread`. |
+| `freshness_pct` | Redundant once `avg_best_year` and `era_spread` are both in the model. |
 
-The 60-day window is intentional -- repertoire is a temporal signal. Re-running
-this analysis after several weeks will produce different results as playlists evolve.
+The UAPH removal had a directly measurable consequence. With it in the model, Sunday
+Mornings Over Easy was held in the specialty outlier cluster alongside 90s at Night and
+This Just In, because its limited broadcast footprint produced an artificially high
+per-hour artist count. Removing it let the remaining five features resolve what they
+already agreed on: Sunday Mornings programs with the same era range, rotation depth,
+and era-mixing pattern as the weekday rotation core. The k=3 cophenetic gap improved
+from 1.002 to 2.798 -- a larger gap indicates greater model confidence in where to cut.
 
-**Pass 3 -- Combined, unweighted** (scalar features + MDS embedding of repertoire)
+**Repertoire similarity: TF-IDF**
 
-The repertoire similarity matrix is not directly combinable with scalar features.
-It is first reduced to 2 dimensions via MDS (metric=precomputed, random_state=42),
-then concatenated with the 6 scalar features (8 total). All features z-scored.
-This gives the repertoire signal a 2:6 vote share vs. the scalar features.
+The initial approach used binary indicator vectors: top-10 most-played artists and
+top-20 most-played tracks per show, union vocabulary across all 11 shows. The problem
+is that the station's shared rotation backbone -- REM, RHCP, Oasis, Beck, Black Crowes
+-- appears in every show at similar rates. In a binary vector each of these counts
+equally with a show-exclusive artist, inflating cross-cluster similarity uniformly.
 
-**Pass 4 -- Combined, equal-weight** (same as Pass 3 but MDS dimensions scaled x3)
+TF-IDF handles this by natural analogy to the stop-word problem in text retrieval:
+IDF assigns near-zero weight to artists that appear across all shows, because ubiquitous
+entries carry no discriminating information. TF weights by relative play frequency within
+each show, so an artist who accounts for 8% of a show's plays contributes meaningfully
+even if they appear in other shows at 1%.
 
-The MDS coordinates are multiplied by 3 before StandardScaler rescaling, giving
-the repertoire family approximately equal influence to the scalar family (6v each).
-This tests whether the Pass 3 structure is an artifact of scalar overweighting.
+The improvement is quantifiable. The 10@10 / 10@10 Weekend Replay pair -- the Replay is
+a literal rebroadcast -- went from 0.700 cosine similarity to 0.928. Their similarity
+with the weekday rotation shows dropped from 0.40-0.47 to 0.07-0.10. The cluster
+assignments did not change. The binary approach was not structurally wrong; it was
+diluted by the shared backbone.
+
+A secondary bug was fixed in the process: the original `compute_repertoire_similarity()`
+re-queried raw plays from the database, bypassing the segmentation pipeline. Density-
+segmented shows (10@10, This Just In) were contributing their full hour-blocks, including
+bleed tracks, to the repertoire vectors. The function now accepts the pre-segmented
+dataframe from the caller.
+
+Full artist and track vocabulary is used; IDF naturally handles the long tail.
+
+![Repertoire cosine similarity (TF-IDF)](docs/images/clustering_repertoire_heatmap.png)
+
+**Passes**
+
+1. **Scalar only** -- six features above, z-scored, Euclidean distance, Ward linkage
+2. **Repertoire only** -- TF-IDF cosine similarity, Ward linkage
+3. **Combined, unweighted** -- scalar features concatenated with a 2-dimensional MDS
+   embedding of the repertoire similarity matrix, all features z-scored. Repertoire
+   signal gets a 2:6 vote share vs. the scalar family.
+4. **Combined, equal-weight** -- same as Pass 3, MDS coordinates multiplied by 3 before
+   rescaling to give repertoire approximately equal influence. Tests whether the Pass 3
+   structure is an artifact of scalar overweighting.
+
+![Scalar feature dendrogram](docs/images/clustering_scalar_dendrogram.png)
 
 ### Findings
 
-**Consistent three-cluster structure across all four passes:**
+**Three-cluster structure, consistent across all four passes:**
 
-- **Main rotation core** -- Coach, Peak Music, Chris Herrmann, Jimmy Fink, Pam Landry.
-  Tight cluster on both scalars and repertoire. Jimmy Fink and Peak Music are the closest
-  pair in the dataset (cosine similarity 0.77 on repertoire). These shows share
-  the same artists (U2, Black Keys, Noah Kahan, Tedeschi Trucks, Bruce Springsteen)
-  and draw from the same track pool.
+| Cluster | Shows | Defining characteristic |
+|---|---|---|
+| Era-segmented | 10@10, 10@10 Weekend Replay, 90s at Night | Single-era or decade-locked formats |
+| Weekday rotation core | Coach, Peak Music, Chris Herrmann, Jimmy Fink, Pam Landry, Andy Bale, Sunday Mornings Over Easy | Wide-era rotation, contemporary catalog center |
+| Contemporary specialist | This Just In with Meg White | Near-zero era spread, 100% freshness |
 
-- **Oldies tier** -- 10@10 and 10@10 Weekend Replay (cosine similarity 0.73, expected
-  as the Replay is a rebroadcast). Average release year 1979. Adjacent to the main
-  core in scalar space but clearly separated by era and repertoire. Andy Bale sits
-  between this tier and the core in the combined passes.
+**Feature values by cluster:**
 
-- **Specialty outliers** -- Three shows with near-zero repertoire overlap with
-  all other shows:
-  - *90's at Night*: cosine similarity 0.00 with every other show. Programs a
-    completely distinct catalog (Nirvana, Pearl Jam, Red Hot Chili Peppers, etc.).
-    Tightest era sequencing among the specialty outliers (mean_gap = 4.1 yrs).
-  - *Sunday Mornings Over Easy*: near-zero similarity (0.00-0.10). Folk/acoustic/
-    Americana format (Grateful Dead, Norah Jones, Bob Dylan, Iron and Wine).
-    High exclusive_artist_pct despite not being a genre-locked format.
-  - *This Just In with Meg White*: low but non-zero similarity (0.10-0.20).
-    Contemporary/indie lean (Noah Kahan, Sheepdogs, Metric, Bleachers). Extreme
-    outlier on freshness (100%) and avg_best_year (2025.8). Also the tightest era
-    sequencing in the dataset (mean_gap = 0.34), alongside 10@10 (0.60) -- both
-    are density-segmented shows with rigid single-era formats.
+`era_continuity_mean_gap` cleanly separates all three formats. This Just In: 0.34 years.
+Era-segmented shows: 0.60-3.45 years. Weekday rotation: 24.9-28.9 years. Shows that stay
+in their era have near-zero gaps between consecutive plays; wide-rotation shows jump
+decades with almost every track.
 
-**Cluster robustness:**
+`era_spread` (std dev of `best_year`) tells the same story: 0.51 (This Just In) -- 
+effectively a single release year -- vs. 3.68-10.23 (era-segmented) vs. 19.4-20.8
+(weekday rotation). 10@10 sits in the middle of the era-segmented cluster: wider than
+90s at Night because the show mixes 70s and 80s decades, but narrow compared to the
+weekday rotation.
 
-Passes 3 and 4 (combined unweighted vs. equal-weight) produce virtually identical
-dendrograms. Tripling the repertoire weight does not shift any cluster assignments.
-This means the scalar and repertoire signals are not in tension -- shows that program
-similarly on operational metrics also share similar playlists. The clustering structure
-is stable, not an artifact of feature weighting.
+`rotation_depth` (plays per unique canonical track): Peak Music (4.85) plays the deepest
+rotation in the dataset. This Just In (4.68) is nearly as deep, for a structurally
+different reason -- a contemporary-only format with a narrow catalog of recent tracks
+cycling frequently. 90s at Night (1.01) is the opposite: nearly every play in the 60-day
+window is a unique canonical track, consistent with a large decade-spanning library cycling
+slowly.
 
-**Observed differentiation within the main rotation core:**
+`band_age_score`: This Just In scores 2.11 (contemporary acts, early career). 90s at Night
+scores -1.26 (established acts recorded decades before). Sunday Mornings Over Easy scores
+1.08 -- folk and acoustic catalog skews toward mature artists.
 
-Andy Bale and Pam Landry appear closer on scalar features alone (similar era mix,
-freshness, rotation depth) but diverge on repertoire. Chris Herrmann and Coach show
-the same pattern. Both pairs are pulled back together in the combined passes, confirming
-that the repertoire divergence is real but not large enough to overcome the strong
-scalar similarity. These pairs have the same programming philosophy but slightly
-different personal taste -- they would feel similar to a casual listener.
+**Sunday Mornings Over Easy**
 
-**Scalar concentration:**
+The most analytically interesting reassignment. Sunday Mornings programs folk, acoustic,
+and Americana -- Grateful Dead, Bob Dylan, Norah Jones, Iron and Wine -- a clearly distinct
+format from the contemporary-rock weekday rotation. But the scalar features place it firmly
+in the weekday core. Its `avg_best_year` (2002), `era_spread` (20.75), and
+`era_continuity_mean_gap` (26.71) are indistinguishable from Coach or Pam Landry.
 
-Top-20 artist coverage per show ranges from 19% (Peak Music) to 46% (90's at Night).
-The main rotation shows are low-concentration, long-tail programmers. A top-N overlap
-approach to measuring style similarity was therefore discarded in favour of binary
-indicator vectors and concentration scalars.
+The dimension that separates it is `exclusive_artist_pct`: 28.2%, vs. 0.7-4.4% for the
+rest of the weekday core. Sunday Mornings draws from a distinct artist roster, but uses
+the same era-mixing and rotation structure as any other weekday show. The TF-IDF
+repertoire similarity confirms this: it does not cluster tightly with the weekday shows
+on content, but on operational programming metrics it is not an outlier.
 
-**Key insight:**
+**Cluster robustness**
 
-The scalar features measure *how* a show is programmed; the repertoire features measure
-*what* is programmed. The scalar space is primarily capturing format type (current
-rotation vs. oldies vs. specialty). The main rotation shows converge on similar scalar
-values because they operate within the same format constraints. The repertoire dimension
-is where individual curation choices live -- but even there, the main rotation shows
-are drawing from a shared pool with limited individual differentiation. The clearest
-differentiations in the dataset are at the format boundary, not the host boundary.
+Passes 3 and 4 -- unweighted vs. equal-weight combined -- produce identical cluster
+assignments despite the repertoire signal's influence tripling between them. The scalar
+and repertoire dimensions are not in tension. Shows that program similarly on structure
+also program similarly on content. The cluster structure is not an artifact of feature
+weighting.
+
+### Key insight
+
+The scalar features capture *how* a show is programmed: era center, era breadth, rotation
+speed, artist exclusivity. The repertoire features capture *what* is programmed. For the
+era-segmented and contemporary-specialist shows both dimensions agree strongly: narrow era
+range is both a structural choice and a content constraint. For the weekday rotation core,
+the scalar features converge (shared format) while the repertoire diverges (individual
+taste within the same format). Sunday Mornings is the edge case: identical programming
+structure, distinct content.
+
+The clearest differentiations in the dataset are at format boundaries -- era-locked vs.
+wide-rotation vs. contemporary-only -- not at the host boundary within the weekday
+rotation.
 
 ------------------------------------------------------------------------
 

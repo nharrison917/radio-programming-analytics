@@ -8,6 +8,42 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.6] - 2026-04-17
+
+Documentation and presentation overhaul.
+
+### Changed
+- `ANALYSIS.md`: clustering section rewritten to reflect v1.7.3-1.7.4 changes.
+  Feature table updated (era_spread, rotation_depth, band_age_score replacing
+  UAPH/entropy/freshness_pct with rationale for each removal). Repertoire pass
+  describes TF-IDF approach with quantified before/after improvement (10@10 pair
+  0.700->0.928; 10@10 vs main rotation 0.40-0.47->0.07-0.10). Cluster assignments
+  updated to reflect Sunday Mornings Over Easy correctly placed in weekday core,
+  with feature-value evidence from the generated CSV. Robustness finding retained.
+- `README.md`: dataset stats refreshed to 2026-04-17 (67 days, 19,174 plays, 98.4%
+  match rate, 512 MB corrections, 923 artists). MusicBrainz enrichment now described
+  as two-pass (ISRC + title/artist). Clustering description updated to TF-IDF and
+  named six features. Broken `density_vs_freshness.png` (gitignored path) replaced
+  with `docs/images/clustering_repertoire_heatmap.png`. "Interactive output files"
+  reference replaced with accurate statement of what is tracked vs. regenerated.
+  Entry points: added `cluster` and `mb-artist-enrich`. Tech stack: added
+  scikit-learn and scipy. Key findings rewritten around three named clusters.
+- `analytics/show_clustering.py`: all chart outputs now use abbreviated show names
+  via `_shorten_label()` helper and `_LABEL_ABBREV` dict (long offenders:
+  "10 @ 10 Weekend Replay", "This Just In with Meg White", "Sunday Mornings Over
+  Easy", "10 @ 10"). "* = density-segmented pairs" annotation repositioned to
+  `y=1.08` above the chart, out of the rotated label collision zone. Right margin
+  increased to 80; `automargin=True` added to x-axis. Applied uniformly to
+  `_dendrogram()`, `_scalar_heatmap()`, and `_similarity_heatmap()`.
+
+### Added
+- `docs/images/clustering_scalar_dendrogram.png`: static screenshot of the scalar
+  feature dendrogram; referenced in ANALYSIS.md.
+- `docs/images/clustering_repertoire_heatmap.png`: static screenshot of the TF-IDF
+  repertoire cosine similarity heatmap; referenced in README.md and ANALYSIS.md.
+
+---
+
 ## [1.7.5] - 2026-04-17
 
 MusicBrainz title/artist search: expanded result window and fixed retry gate.
