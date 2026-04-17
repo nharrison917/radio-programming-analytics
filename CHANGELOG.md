@@ -8,6 +8,33 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.5] - 2026-04-17
+
+MusicBrainz title/artist search: expanded result window and fixed retry gate.
+
+### Changed
+- `scraper/mb_enrichment.py`: title/artist search `limit` increased from 25 to 100.
+  Popular tracks (Springsteen, Ramones, etc.) had their studio Album/Single recordings
+  ranked beyond position 25 in MB results -- all 25 returned slots were occupied by
+  live and compilation versions, which the secondary-type filter correctly rejected,
+  producing a FAILED status even though the correct recording existed in MB. With
+  limit=100, 57 of 268 previously-stuck TA failures resolved on first rerun.
+
+### Fixed
+- `scraper/mb_enrichment.py`: Pass 2 (title/artist) was not updating `mb_looked_up_at`
+  on write. The 7-day retry gate (`mb_looked_up_at < DATETIME('now', '-7 days')`) was
+  evaluating against the timestamp set by Pass 1, not Pass 2 -- so FAILED TA records
+  were re-eligible on every run instead of waiting 7 days. Pass 2 now writes
+  `mb_looked_up_at = DATETIME('now')` alongside `mb_ta_status`.
+
+### DB corrections (manual, this session)
+- Canonical 1773 (Rob Thomas - 3 Am): reset `mb_lookup_status` from SUCCESS to NULL
+  (was SUCCESS with `mb_isrc_year` NULL -- partial write from prior run).
+- Canonical 1367 (Spoon - Wild): reset `mb_ta_status` from SUCCESS to NULL (same
+  partial-write issue).
+
+---
+
 ## [1.7.4] - 2026-04-16
 
 Repertoire similarity: replaced binary top-N with TF-IDF on full vocabulary.

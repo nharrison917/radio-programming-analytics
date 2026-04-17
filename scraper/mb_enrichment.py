@@ -174,7 +174,7 @@ def _lookup_title_artist(artist, title):
     url = (
         "https://musicbrainz.org/ws/2/recording"
         f'?query=artist:"{safe_artist}"+AND+recording:"{safe_title}"'
-        "&fmt=json&limit=25&inc=releases+release-groups"
+        "&fmt=json&limit=100&inc=releases+release-groups"
     )
     for attempt in range(3):
         try:
@@ -422,7 +422,8 @@ def run_mb_enrichment():
                     cur.execute("""
                         UPDATE canonical_tracks
                         SET mb_title_artist_year = ?,
-                            mb_ta_status         = ?
+                            mb_ta_status         = ?,
+                            mb_looked_up_at      = DATETIME('now')
                         WHERE canonical_id = ?
                     """, (year, status, cid))
 
