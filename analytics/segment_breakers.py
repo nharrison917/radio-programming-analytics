@@ -93,7 +93,7 @@ ORDER BY p.play_ts
 
 def _get_oob_indices(tracks_df):
     """
-    Return index labels of mid-segment OOB tracks from valid segments.
+    Return dict {index: (modal, band)} for mid-segment OOB tracks from valid segments.
 
     "Mid-segment" means the track falls chronologically between the first and
     last in-band track in its block -- i.e. it is surrounded by segment tracks
@@ -104,7 +104,7 @@ def _get_oob_indices(tracks_df):
     tracks_df must have columns: play_ts, station_show, play_date, play_hour,
     best_year. Additional columns are preserved via index labels.
     """
-    oob_indices = []
+    oob_meta = {}  # {index: (modal, band)}
 
     for (show, date, hour), grp in tracks_df.groupby(
         ["station_show", "play_date", "play_hour"]
@@ -139,9 +139,9 @@ def _get_oob_indices(tracks_df):
 
         for idx in grp_idx_list:
             if idx not in in_band_set and first_ib_pos < pos_map[idx] < last_ib_pos:
-                oob_indices.append(idx)
+                oob_meta[idx] = (modal, band)
 
-    return oob_indices
+    return oob_meta
 
 
 def run_segment_breakers():
@@ -170,6 +170,7 @@ def run_segment_breakers():
     df_90s_breakers["breach_reason"] = df_90s_breakers["best_year"].apply(
         lambda y: "year_null" if pd.isna(y) else "year_oob"
     )
+    df_90s_breakers["segment_band"] = f"{YEAR_LOW}-{YEAR_HIGH}"
 
     print(f"  90's at Night: {len(df_90s_breakers)} canonical breakers")
     print(f"    year_null : {is_null[is_null | is_oob].sum()}")
@@ -184,9 +185,17 @@ def run_segment_breakers():
     conn.close()
     df_seg["play_ts"] = pd.to_datetime(df_seg["play_ts"], errors="coerce")
 
-    oob_idx = _get_oob_indices(df_seg)
+    oob_meta = _get_oob_indices(df_seg)
+    oob_idx = list(oob_meta.keys())
     df_oob = df_seg.loc[oob_idx].copy() if oob_idx else df_seg.iloc[0:0].copy()
     df_oob["breach_reason"] = "oob_segment_track"
+    if not df_oob.empty:
+        df_oob["segment_band"] = [
+            f"{int(oob_meta[i][0] - oob_meta[i][1])}-{int(oob_meta[i][0] + oob_meta[i][1])}"
+            for i in df_oob.index
+        ]
+    else:
+        df_oob["segment_band"] = pd.Series(dtype=str)
 
     print(f"  SEGMENT_SHOWS OOB plays: {len(df_oob)}")
     for show in SEGMENT_SHOWS:
@@ -213,7 +222,7 @@ def run_segment_breakers():
     # ------------------------------------------------------------------
     shared_cols = ["canonical_id", "display_artist", "display_title",
                    "spotify_album_type", "play_ts", "best_year",
-                   "station_show", "breach_reason"]
+                   "station_show", "breach_reason", "segment_band"]
 
     combined = pd.concat(
         [df_90s_breakers[shared_cols], df_oob_dedup[shared_cols]],
@@ -235,6 +244,8 @@ def run_segment_breakers():
                           lambda x: "; ".join(sorted(x.unique()))),
             breach_reason=("breach_reason",
                            lambda x: "; ".join(sorted(x.unique()))),
+            segment_band=("segment_band",
+                          lambda x: "; ".join(sorted(x.dropna().unique()))),
         )
         .reset_index()
         .sort_values(
@@ -246,7 +257,8 @@ def run_segment_breakers():
     )
 
     out_cols = ["canonical_id", "display_artist", "display_title", "best_year",
-                "station_show", "most_recent_play_ts", "spotify_album_type", "breach_reason"]
+                "segment_band", "station_show", "most_recent_play_ts",
+                "spotify_album_type", "breach_reason"]
     final = final[out_cols]
 
     out_path = QUALITY_DIR / "segment_breakers.csv"

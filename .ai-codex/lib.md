@@ -1,4 +1,4 @@
-# Library Exports (generated 2026-04-17)
+# Library Exports (generated 2026-04-18)
 # fn=function, class=class
 
 ## (root)/
@@ -52,6 +52,8 @@ heatmap_avg_release_year.py
   fn run_heatmap_avg_release_year
 heatmap_weekly_density.py
   fn run_heatmap_weekly_density
+prereleases.py
+  fn run_prereleases
 primary_artist_mismatch.py
   fn _load_candidates
   fn _compute_scores
