@@ -1,6 +1,7 @@
 .env
 .claude/
 .venv/
+.vscode/
 __pycache__/
 *.pyc
 logs/

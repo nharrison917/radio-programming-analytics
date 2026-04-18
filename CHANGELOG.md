@@ -8,6 +8,41 @@ Development assisted by Claude Code (Anthropic).
 
 ---
 
+## [1.7.8] - 2026-04-18
+
+Pre-release plays report, segment_band column, and data quality fixes.
+
+### Added
+- `analytics/prereleases.py`: new quality report identifying plays that occurred before
+  the track's Spotify release date. One row per (week, canonical_id); aggregates
+  `days_pre_released` (max = earliest play in the week), `play_count`, `shows` (distinct,
+  semicolon-separated), `release_date`, `spotify_album_type`, and `still_pre_release`
+  flag. No forward-buffer filter -- all pre-release plays included. 14-day forward buffer
+  in `wednesday_freshness.py` validated against dataset max (10 days); no change needed.
+  Output: `analytics/outputs/quality_checks/prereleases.csv`.
+- `rs_main.py`: `run_prereleases()` wired into the `analyze` pipeline.
+- `analytics/segment_breakers.py`: `segment_band` column added to output CSV showing the
+  era range (`YYYY-YYYY`) of the block the OOB track appeared in. Derived from modal era
+  center ± band parameter. Fixed string `"1989-2000"` for 90's at Night rows.
+  `_get_oob_indices` now returns `{index: (modal, band)}` dict instead of a plain list.
+
+### Fixed
+- Canonical 1773 (Rob Thomas - 3 Am): `manual_year_override = 2005`. Bad `mb_isrc_year =
+  1994` (MB associated the ISRC with the original Matchbox Twenty recording) was pulling
+  `best_year` to 1994. Track is correctly attributed to Rob Thomas solo (2005 release);
+  `band_age` now 6 years (Rob Thomas `mb_earliest_release_year = 1999`).
+- Canonical 1367 (Spoon - Wild): `manual_year_override = 2022`. Bad `mb_title_artist_year
+  = 1990` (MB text search false-positive on a different Spoon entity) was pulling
+  `best_year` to 1990. ISRC and Spoon artist MBID both confirmed correct; `band_age` now
+  28 years. `band_age_negative.csv` now empty.
+
+### DB corrections
+- Canonical 2909 (Thee Sacred Souls - "Anybody's Fool"): `add-override` applied with
+  Spotify ID `6HNpTTwnQHo5JSrWQETLwg`. Actual title is "Any Old Fool" (2026 single);
+  station transcribed the title incorrectly. Pending `weekly` to enrich.
+
+---
+
 ## [1.7.7] - 2026-04-17
 
 Switch `avg_best_year` to median in show clustering scalar features.

@@ -1,9 +1,11 @@
 artist_name,spotify_earliest_year,mb_earliest_year,delta,abs_delta,mb_later_than_spotify,mb_artist_id,play_count
 Barrett Strong,2008,1959,-49,49,0,31ee774b-6248-48d5-a8b5-0d9bebeaba9d,1
 Monotones,2006,1957,-49,49,0,abaabae8-2d0f-4fde-94e8-f2b88d6e11c8,1
+Blue Swede,2014,1973,-41,41,0,f98a61b4-394d-4e1f-a5f3-f747b9494e5a,1
 The Bobby Fuller Four,1998,1965,-33,33,0,c83691bd-ed58-4d97-9edb-3043ace33856,1
 Steam,2000,1969,-31,31,0,7c1bfa64-9ff6-4b3f-a5aa-610298b76a55,1
 Black 47,1965,1991,26,26,1,355ac0da-ab94-48c2-badd-41f3986041cd,2
+Muddy Waters,1960,1941,-19,19,0,f86f1f07-d182-45ce-ae93-ef610880ca72,1
 Captain Sensible,1995,1978,-17,17,0,c5b9c6e1-3aa2-4ff5-a89a-d4e86b09fcdf,1
 John Butler,2012,1996,-16,16,0,790278a2-0256-447e-891d-991211e90a86,1
 Jeff Tweedy,2014,1999,-15,15,0,63287966-6021-474a-ba76-edc37a5f1b7c,3
@@ -11,7 +13,7 @@ Mick Jagger,1985,1970,-15,15,0,b5ffc3aa-b868-4b88-905f-d73d51dbe51c,2
 Robert Plant,1982,1967,-15,15,0,bd53f9a7-8be9-46b0-bf7d-1deea3cb57bc,6
 Eddie Vedder,2007,1993,-14,14,0,1a60d6dd-9d3e-40fc-a66d-3184f9ee0d61,2
 J.J. Cale,1972,1958,-14,14,0,4b0be624-6b87-47e8-bbf0-588a2c6c0439,1
-Keb' Mo',1994,1980,-14,14,0,280ddd36-ac7d-4446-8689-a548d6f3458e,1
+Keb' Mo',1994,1980,-14,14,0,280ddd36-ac7d-4446-8689-a548d6f3458e,2
 DRAMA,2016,2003,-13,13,0,de23d637-20df-4b15-ae63-263dd5a34f10,1
 Foy Vance,2013,2000,-13,13,0,6ef3b33e-848c-4773-867b-5fb1397ef408,4
 Michael Stipe,2019,2006,-13,13,0,905a8f9b-03dc-4f47-b9bb-ecce7ea13ab1,1
@@ -57,7 +59,7 @@ B.B. King,1957,1951,-6,6,0,dcb03ce3-67a5-4eb3-b2d1-2a12d93a38f3,3
 Beck,1994,1988,-6,6,0,309c62ba-7a22-4277-9f67-4a162526d18a,18
 Benjamin Gibbard,2008,2002,-6,6,0,02031e5c-f9ab-4b4e-bc08-a61ea11a455d,1
 Blonde Diamond,2022,2016,-6,6,0,6014f60e-a9fa-42b7-b05a-2e2a4f9acedc,1
-Bob Dylan,1962,1956,-6,6,0,72c536dc-7137-4477-a521-567eeb840fa8,24
+Bob Dylan,1962,1956,-6,6,0,72c536dc-7137-4477-a521-567eeb840fa8,25
 Ed Sheeran,2011,2005,-6,6,0,b8a7c51f-362c-4dcb-a259-bc6e0095f0a6,1
 Edwyn Collins,1990,1984,-6,6,0,14c0c282-e0c1-46fe-acd1-9a015ba721c5,2
 Jalen Ngonda,2023,2017,-6,6,0,869851f6-ad0d-4359-98d3-3ea4ae72d543,1
